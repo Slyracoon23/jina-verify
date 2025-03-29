@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Jina-Verify Reader",
   description: "Generate validated web reference links for reliable LLM citations",
+  openGraph: {
+    images: '/og-image.png',
+  },
 };
 
 export default function RootLayout({
