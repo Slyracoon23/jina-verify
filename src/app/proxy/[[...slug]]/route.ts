@@ -268,13 +268,6 @@ export async function GET(
   const shouldShowVerificationUI = request.nextUrl.searchParams.has('signature');
   const targetUrl = normalizeUrl(slug);
 
-  // Redirect to add signature parameter if not present
-  if (!shouldShowVerificationUI) {
-    const currentUrl = request.nextUrl.clone();
-    currentUrl.searchParams.set('signature', 'true');
-    return NextResponse.redirect(currentUrl);
-  }
-
   try {
     // Validate URL format
     new URL(targetUrl);
@@ -304,6 +297,13 @@ export async function GET(
       signatureToken,
     };
     const signatureWebhook = JSON.stringify(verificationData);
+
+    // Redirect to add signature parameter if not present
+    if (!shouldShowVerificationUI) {
+      const currentUrl = request.nextUrl.clone();
+      currentUrl.searchParams.set('signature', signatureToken);
+      return NextResponse.redirect(currentUrl);
+    }
 
     // Modify content based on content type and UI display preference
     if (contentType.includes('text/html')) {
