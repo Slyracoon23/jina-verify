@@ -1,0 +1,32 @@
+<div class="verification-badge">
+  <button class="toggle-btn" onclick="toggleVerificationMetadata(event)">
+    <span class="toggle-text">Show details</span>
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+    </svg>
+  </button>
+  <div class="verification-header">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round" stroke="currentColor" viewBox="0 0 24 24">
+      <path d="M20 6L9 17l-5-5"/>
+    </svg>
+    Verified Content
+  </div>
+  <div id="verification-metadata" class="verification-metadata">
+    <div onclick="copyToClipboard('${url}', event)" class="copyable-field" title="Click to copy URL">
+      <strong>URL:</strong> ${url}
+    </div>
+    <div onclick="copyToClipboard('${timestamp}', event)" class="copyable-field" title="Click to copy timestamp">
+      <strong>Timestamp:</strong> ${timestamp}
+    </div>
+    <div onclick="copyToClipboard('${contentHash}', event)" class="copyable-field" title="Click to copy content hash">
+      <strong>Content Hash:</strong> ${contentHash}
+    </div>
+    <div onclick="copyToClipboard('${signatureToken}', event)" class="copyable-field" title="Click to copy signature">
+      <strong>Signature:</strong> ${signatureToken}
+    </div>
+    <div onclick="copyToClipboard('${publicKey}', event)" class="copyable-field" title="Click to copy public key">
+      <strong>Public Key:</strong> ${publicKey}
+    </div>
+  </div>
+</div> 

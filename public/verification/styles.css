@@ -1,0 +1,306 @@
+/* Global reset for toggling, fonts, etc. */
+* {
+  box-sizing: border-box;
+}
+
+body, html {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Verification badge container */
+.verification-badge {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 16px;
+  z-index: 9999;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+  color: #333;
+  cursor: pointer;
+  width: 550px;
+  max-width: 90vw;
+  transition: all 0.2s ease-in-out;
+}
+
+.verification-badge:hover {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.16);
+}
+
+/* Header portion of the badge */
+.verification-header {
+  display: flex;
+  align-items: center;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #2e7d32;
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.verification-header svg {
+  margin-right: 12px;
+  width: 28px;
+  height: 28px;
+  stroke: #2e7d32;
+  stroke-width: 2.5;
+}
+
+/* Metadata is hidden by default and can be toggled */
+.verification-metadata {
+  display: none;
+  margin-top: 12px;
+  font-size: 1rem;
+  color: #555;
+  line-height: 1.5;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.3s, transform 0.3s;
+  border-top: 1px solid #e0e0e0;
+  padding-top: 12px;
+}
+
+.verification-metadata.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.verification-metadata div {
+  margin-bottom: 16px;
+  padding: 12px;
+  border-left: 4px solid #4caf50;
+  word-break: break-all;
+  background-color: #f9f9f9;
+  border-radius: 0 8px 8px 0;
+}
+
+/* Copy button container */
+.copy-btn-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+}
+
+/* Copy button styling */
+.copy-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #0069d9;
+  color: #ffffff;
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  transition: background 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.copy-button:hover {
+  background: #0053aa;
+  transform: translateY(-1px);
+}
+
+.copy-button:active {
+  background: #003d82;
+  transform: scale(0.98);
+}
+
+.copy-button svg {
+  width: 20px;
+  height: 20px;
+  stroke: #ffffff;
+  stroke-width: 2;
+  flex-shrink: 0;
+}
+
+/* Copy success message */
+.copy-success {
+  position: absolute;
+  bottom: 55px;
+  right: 0;
+  background: #333;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s, transform 0.3s, visibility 0.3s;
+  white-space: nowrap;
+  visibility: hidden;
+}
+
+.copy-success.show {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+/* Copyable field styling */
+.copyable-field {
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 8px;
+}
+
+.copyable-field strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #2e7d32;
+}
+
+.copyable-field:hover {
+  background-color: rgba(76, 175, 80, 0.08);
+}
+
+.copyable-field:active {
+  background-color: rgba(76, 175, 80, 0.15);
+  transform: translateY(1px);
+}
+
+.copyable-field::after {
+  content: "Click to copy";
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  font-size: 0.8rem;
+  color: #fff;
+  background: #4caf50;
+  padding: 4px 8px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.copyable-field:hover::after {
+  opacity: 1;
+}
+
+/* Field copy success message */
+.field-copy-success {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100%);
+  background: #333;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  z-index: 10000;
+  transition: transform 0.3s ease, opacity 0.3s, visibility 0.3s;
+  white-space: nowrap;
+  visibility: hidden;
+  opacity: 0;
+}
+
+.field-copy-success.show {
+  transform: translateX(-50%) translateY(0);
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Content styling for non-HTML responses */
+.content {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.content pre {
+  padding: 15px;
+  border-radius: 5px;
+  background: #fafafa;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+  .verification-badge {
+    width: 95vw;
+    left: 2.5vw;
+    right: 2.5vw;
+    top: 10px;
+    padding: 12px;
+  }
+  
+  .verification-header {
+    font-size: 1.1rem;
+    margin-bottom: 0;
+  }
+  
+  .verification-metadata {
+    font-size: 0.9rem;
+  }
+  
+  .verification-metadata div {
+    padding: 8px;
+    margin-bottom: 12px;
+  }
+  
+  .copy-btn-container {
+    bottom: 10px;
+    right: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .verification-badge {
+    padding: 10px;
+  }
+  
+  .verification-header svg {
+    width: 22px;
+    height: 22px;
+  }
+  
+  .copyable-field::after {
+    content: "Copy";
+    padding: 2px 6px;
+    font-size: 0.7rem;
+  }
+}
+
+/* Add a toggle button style */
+.toggle-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(76, 175, 80, 0.1);
+  border: 1px solid rgba(76, 175, 80, 0.2);
+  color: #2e7d32;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.toggle-btn:hover {
+  background: rgba(76, 175, 80, 0.15);
+}
+
+.toggle-btn svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.3s ease;
+}
+
+.toggle-btn.expanded svg {
+  transform: rotate(180deg);
+} 

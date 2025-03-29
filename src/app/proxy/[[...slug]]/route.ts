@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
 // Use environment variables for the key pair
 const PRIVATE_KEY = process.env.PRIVATE_KEY || 'your-private-key-change-me';
@@ -21,602 +23,15 @@ interface VerificationData {
   publicKey: string;
 }
 
-/**
- * CSS for the verification UI.
- */
-const VERIFICATION_CSS = `
-/* Global reset for toggling, fonts, etc. */
-* {
-  box-sizing: border-box;
-}
+// Define public asset paths - will be loaded by the browser directly
+const VERIFICATION_CSS_PATH = '/verification/styles.css';
+const VERIFICATION_JS_PATH = '/verification/script.js';
 
-body, html {
-  margin: 0;
-  padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-
-/* Verification badge container */
-.verification-badge {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
-  padding: 16px;
-  z-index: 9999;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
-  color: #333;
-  cursor: pointer;
-  width: 550px;
-  max-width: 90vw;
-  transition: all 0.2s ease-in-out;
-}
-
-.verification-badge:hover {
-  box-shadow: 0 8px 24px rgba(0,0,0,0.16);
-}
-
-/* Header portion of the badge */
-.verification-header {
-  display: flex;
-  align-items: center;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #2e7d32;
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: 0;
-}
-
-.verification-header svg {
-  margin-right: 12px;
-  width: 28px;
-  height: 28px;
-  stroke: #2e7d32;
-  stroke-width: 2.5;
-}
-
-/* Metadata is hidden by default and can be toggled */
-.verification-metadata {
-  display: none;
-  margin-top: 12px;
-  font-size: 1rem;
-  color: #555;
-  line-height: 1.5;
-  opacity: 0;
-  transform: translateY(-10px);
-  transition: opacity 0.3s, transform 0.3s;
-  border-top: 1px solid #e0e0e0;
-  padding-top: 12px;
-}
-
-.verification-metadata.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.verification-metadata div {
-  margin-bottom: 16px;
-  padding: 12px;
-  border-left: 4px solid #4caf50;
-  word-break: break-all;
-  background-color: #f9f9f9;
-  border-radius: 0 8px 8px 0;
-}
-
-/* Copy button container */
-.copy-btn-container {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 9999;
-}
-
-/* Copy button styling */
-.copy-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: #0069d9;
-  color: #ffffff;
-  padding: 10px 16px;
-  border-radius: 4px;
-  font-size: 14px;
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-  transition: background 0.2s ease-in-out, transform 0.2s ease-in-out;
-}
-
-.copy-button:hover {
-  background: #0053aa;
-  transform: translateY(-1px);
-}
-
-.copy-button:active {
-  background: #003d82;
-  transform: scale(0.98);
-}
-
-.copy-button svg {
-  width: 20px;
-  height: 20px;
-  stroke: #ffffff;
-  stroke-width: 2;
-  flex-shrink: 0;
-}
-
-/* Copy success message */
-.copy-success {
-  position: absolute;
-  bottom: 55px;
-  right: 0;
-  background: #333;
-  color: #fff;
-  padding: 8px 12px;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity 0.3s, transform 0.3s, visibility 0.3s;
-  white-space: nowrap;
-  visibility: hidden;
-}
-
-.copy-success.show {
-  opacity: 1;
-  transform: translateY(0);
-  visibility: visible;
-}
-
-/* Copyable field styling */
-.copyable-field {
-  position: relative;
-  cursor: pointer;
-  transition: all 0.2s;
-  border-radius: 8px;
-}
-
-.copyable-field strong {
-  display: block;
-  margin-bottom: 6px;
-  color: #2e7d32;
-}
-
-.copyable-field:hover {
-  background-color: rgba(76, 175, 80, 0.08);
-}
-
-.copyable-field:active {
-  background-color: rgba(76, 175, 80, 0.15);
-  transform: translateY(1px);
-}
-
-.copyable-field::after {
-  content: "Click to copy";
-  position: absolute;
-  right: 12px;
-  top: 12px;
-  font-size: 0.8rem;
-  color: #fff;
-  background: #4caf50;
-  padding: 4px 8px;
-  border-radius: 4px;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.copyable-field:hover::after {
-  opacity: 1;
-}
-
-/* Field copy success message */
-.field-copy-success {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%) translateY(-100%);
-  background: #333;
-  color: #fff;
-  padding: 8px 12px;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  z-index: 10000;
-  transition: transform 0.3s ease, opacity 0.3s, visibility 0.3s;
-  white-space: nowrap;
-  visibility: hidden;
-  opacity: 0;
-}
-
-.field-copy-success.show {
-  transform: translateX(-50%) translateY(0);
-  visibility: visible;
-  opacity: 1;
-}
-
-/* Content styling for non-HTML responses */
-.content {
-  margin-top: 20px;
-  padding: 20px;
-  border-radius: 8px;
-  border: 1px solid #ddd;
-}
-
-.content pre {
-  padding: 15px;
-  border-radius: 5px;
-  background: #fafafa;
-  overflow-x: auto;
-  white-space: pre-wrap;
-}
-
-/* Responsive design for smaller screens */
-@media (max-width: 768px) {
-  .verification-badge {
-    width: 95vw;
-    left: 2.5vw;
-    right: 2.5vw;
-    top: 10px;
-    padding: 12px;
-  }
-  
-  .verification-header {
-    font-size: 1.1rem;
-    margin-bottom: 0;
-  }
-  
-  .verification-metadata {
-    font-size: 0.9rem;
-  }
-  
-  .verification-metadata div {
-    padding: 8px;
-    margin-bottom: 12px;
-  }
-  
-  .copy-btn-container {
-    bottom: 10px;
-    right: 10px;
-  }
-}
-
-@media (max-width: 480px) {
-  .verification-badge {
-    padding: 10px;
-  }
-  
-  .verification-header svg {
-    width: 22px;
-    height: 22px;
-  }
-  
-  .copyable-field::after {
-    content: "Copy";
-    padding: 2px 6px;
-    font-size: 0.7rem;
-  }
-}
-
-/* Add a toggle button style */
-.toggle-btn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: rgba(76, 175, 80, 0.1);
-  border: 1px solid rgba(76, 175, 80, 0.2);
-  color: #2e7d32;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: all 0.2s;
-}
-
-.toggle-btn:hover {
-  background: rgba(76, 175, 80, 0.15);
-}
-
-.toggle-btn svg {
-  width: 16px;
-  height: 16px;
-  transition: transform 0.3s ease;
-}
-
-.toggle-btn.expanded svg {
-  transform: rotate(180deg);
-}
-`;
-
-/**
- * JavaScript for toggling metadata and copying content.
- */
-const TOGGLE_SCRIPT = `
-<script>
-  // Parse the JWT-like token
-  function parseToken(token) {
-    try {
-      const parts = token.split('.');
-      if (parts.length !== 3) return null;
-      
-      const payload = JSON.parse(atob(parts[1]));
-      return {
-        header: JSON.parse(atob(parts[0])),
-        payload,
-        signature: parts[2]
-      };
-    } catch (e) {
-      console.error('Error parsing token:', e);
-      return null;
-    }
-  }
-
-  // Get verification data from meta tag
-  function getVerificationData() {
-    const meta = document.querySelector('meta[name="x-signature-webhook"]');
-    if (!meta) return null;
-    
-    try {
-      return JSON.parse(meta.content);
-    } catch (e) {
-      console.error('Error parsing verification data:', e);
-      return null;
-    }
-  }
-
-  // Compute hash of the current content
-  async function computeContentHash() {
-    let content = '';
-    
-    // Get content based on what type of view we're in
-    const preElement = document.querySelector('.content pre');
-    if (preElement) {
-      // Non-HTML content (in the wrapper)
-      content = preElement.innerText;
-    } else {
-      // HTML content - get it without the verification UI
-      const tempDiv = document.createElement('div');
-      tempDiv.appendChild(document.body.cloneNode(true));
-      
-      // Remove verification UI elements
-      const badge = tempDiv.querySelector('.verification-badge');
-      if (badge) badge.remove();
-      
-      const copyBtnContainer = tempDiv.querySelector('.copy-btn-container');
-      if (copyBtnContainer) copyBtnContainer.remove();
-      
-      content = tempDiv.querySelector('body').innerHTML;
-    }
-    
-    // Use Web Crypto API to compute SHA-256 hash
-    const encoder = new TextEncoder();
-    const data = encoder.encode(content);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    
-    // Convert hash to hex string
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    
-    return hashHex;
-  }
-  
-  // Verify all conditions
-  async function verifyContent() {
-    const data = getVerificationData();
-    if (!data) {
-      updateBadgeStatus(false, "No verification data found");
-      return;
-    }
-    
-    // Parse the token
-    const tokenData = parseToken(data.signatureToken);
-    if (!tokenData) {
-      updateBadgeStatus(false, "Invalid signature token format");
-      return;
-    }
-    
-    // 1. Check if URL matches
-    const urlMatches = data.url === tokenData.payload.url;
-    
-    // 2. Check content hash
-    const computedHash = await computeContentHash();
-    const contentMatches = data.contentHash === computedHash;
-    
-    // 3. Check token expiration
-    const currentTime = Math.floor(Date.now() / 1000);
-    const notExpired = tokenData.payload.exp > currentTime;
-    
-    // 4. Validate JWT signature
-    // Note: For a complete implementation, we'd need to:
-    // 1. Have the public key available on the client (already provided in data.publicKey)
-    // 2. Use Web Crypto API to verify the RS256 signature
-    // For this demo, we'll consider the signature check as part of the token format
-    
-    // Update badge status
-    if (urlMatches && contentMatches && notExpired) {
-      updateBadgeStatus(true, "Content verified successfully");
-    } else {
-      let errorMessage = "Verification failed: ";
-      if (!urlMatches) errorMessage += "URL mismatch. ";
-      if (!contentMatches) errorMessage += "Content hash mismatch. ";
-      if (!notExpired) errorMessage += "Signature expired. ";
-      
-      updateBadgeStatus(false, errorMessage.trim());
-    }
-  }
-  
-  // Update badge UI based on verification
-  function updateBadgeStatus(isVerified, message) {
-    const badge = document.querySelector('.verification-badge');
-    const header = document.querySelector('.verification-header');
-    
-    if (!badge || !header) return;
-    
-    if (isVerified) {
-      badge.style.borderColor = '#4caf50';
-      header.innerHTML = \`
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke-width="2" stroke-linecap="round"
-             stroke-linejoin="round" stroke="currentColor" viewBox="0 0 24 24">
-          <path d="M20 6L9 17l-5-5"/>
-        </svg>
-        Verified Content
-      \`;
-      header.style.color = '#4caf50';
-    } else {
-      badge.style.borderColor = '#f44336';
-      header.innerHTML = \`
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke-width="2" stroke-linecap="round"
-             stroke-linejoin="round" stroke="currentColor" viewBox="0 0 24 24">
-          <path d="M18 6L6 18M6 6l12 12"/>
-        </svg>
-        Verification Failed
-      \`;
-      header.style.color = '#f44336';
-      
-      // Add error message to metadata
-      const metadata = document.getElementById('verification-metadata');
-      if (metadata) {
-        const errorDiv = document.createElement('div');
-        errorDiv.innerHTML = \`<strong>Error:</strong> \${message}\`;
-        errorDiv.style.borderLeft = '3px solid #f44336';
-        metadata.prepend(errorDiv);
-      }
-    }
-  }
-
-  // Copy text to clipboard
-  function copyToClipboard(text, event) {
-    // Stop event propagation to prevent toggling the metadata
-    event.stopPropagation();
-    
-    // Copy to clipboard
-    navigator.clipboard.writeText(text)
-      .then(() => {
-        // Create or get the notification element
-        let notification = document.getElementById('field-copy-notification');
-        if (!notification) {
-          notification = document.createElement('div');
-          notification.id = 'field-copy-notification';
-          notification.className = 'field-copy-success';
-          document.body.appendChild(notification);
-        }
-        
-        // Set the message and show
-        notification.textContent = 'Copied to clipboard!';
-        notification.classList.add('show');
-        
-        // Hide after delay
-        setTimeout(() => {
-          notification.classList.remove('show');
-        }, 2000);
-        
-        // Completely remove notification after animation completes
-        setTimeout(() => {
-          notification.style.display = 'none';
-          setTimeout(() => {
-            notification.style.display = '';
-          }, 100);
-        }, 2300);
-      })
-      .catch(err => {
-        console.error('Failed to copy: ', err);
-      });
-  }
-
-  // Toggle verification metadata display
-  function toggleVerificationMetadata(event) {
-    event.stopPropagation();
-    
-    const metadata = document.getElementById('verification-metadata');
-    const btn = event.currentTarget;
-    const btnText = btn.querySelector('.toggle-text');
-    
-    if (metadata.classList.contains('visible')) {
-      // Hide metadata with animation
-      metadata.classList.remove('visible');
-      setTimeout(() => {
-        metadata.style.display = 'none';
-      }, 300); // Match transition duration
-      
-      btnText.textContent = 'Show details';
-      btn.classList.remove('expanded');
-    } else {
-      // Show metadata with animation
-      metadata.style.display = 'block';
-      
-      // Use a small delay to ensure display:block has been applied
-      setTimeout(() => {
-        metadata.classList.add('visible');
-      }, 10);
-      
-      btnText.textContent = 'Hide details';
-      btn.classList.add('expanded');
-    }
-  }
-
-  // Run verification on page load
-  document.addEventListener('DOMContentLoaded', async () => {
-    try {
-      await verifyContent();
-    } catch (error) {
-      console.error('Verification error:', error);
-      updateBadgeStatus(false, "Error during verification: " + error.message);
-    }
-  });
-
-  function copyContent(event) {
-    event.stopPropagation(); // Prevent toggling the metadata when clicking the button
-    
-    let contentToCopy = '';
-    
-    // Check if we're in the wrapped content view (non-HTML content)
-    const preElement = document.querySelector('.content pre');
-    if (preElement) {
-      contentToCopy = preElement.innerText;
-    } else {
-      // For HTML content, copy the body contents excluding the verification badge
-      const tempDiv = document.createElement('div');
-      tempDiv.appendChild(document.body.cloneNode(true));
-      const badge = tempDiv.querySelector('.verification-badge');
-      if (badge) {
-        badge.remove();
-      }
-      const copyBtnContainer = tempDiv.querySelector('.copy-btn-container');
-      if (copyBtnContainer) {
-        copyBtnContainer.remove();
-      }
-      contentToCopy = tempDiv.querySelector('body').innerHTML;
-    }
-    
-    navigator.clipboard.writeText(contentToCopy)
-      .then(() => {
-        const successElem = document.getElementById('copy-success');
-        successElem.classList.add('show');
-        
-        // Hide after delay
-        setTimeout(() => {
-          successElem.classList.remove('show');
-        }, 2000);
-        
-        // Completely remove notification after animation completes
-        setTimeout(() => {
-          successElem.style.display = 'none';
-          setTimeout(() => {
-            successElem.style.display = '';
-          }, 100);
-        }, 2300);
-      })
-      .catch(err => {
-        console.error('Failed to copy content: ', err);
-      });
-  }
-</script>
-`;
+// Load HTML templates from public folder
+const TEMPLATE_DIR = path.join(process.cwd(), 'public', 'verification', 'templates');
+const BADGE_TEMPLATE = fs.readFileSync(path.join(TEMPLATE_DIR, 'badge.html'), 'utf-8');
+const COPY_BUTTON_TEMPLATE = fs.readFileSync(path.join(TEMPLATE_DIR, 'copy-button.html'), 'utf-8');
+const WRAPPER_TEMPLATE = fs.readFileSync(path.join(TEMPLATE_DIR, 'wrapper.html'), 'utf-8');
 
 /**
  * Creates a JWT-like signature token using RS256 (asymmetric crypto).
@@ -639,29 +54,51 @@ function createSignatureToken(targetUrl: string, timestamp: number, contentHash:
   const dataToSign = `${header}.${payload}`;
 
   try {
-    // Format the private key properly if it's not in PEM format
-    let privateKeyToUse = PRIVATE_KEY;
-    if (!privateKeyToUse.includes('-----BEGIN') && !privateKeyToUse.includes('PRIVATE KEY')) {
-      privateKeyToUse = `-----BEGIN PRIVATE KEY-----\n${privateKeyToUse}\n-----END PRIVATE KEY-----`;
-    }
+    // Check if we have a valid private key for signing
+    if (PRIVATE_KEY !== 'your-private-key-change-me' && PRIVATE_KEY.length > 20) {
+      // Format the private key properly if it's not in PEM format
+      let privateKeyToUse = PRIVATE_KEY;
+      if (!privateKeyToUse.includes('-----BEGIN') && !privateKeyToUse.includes('PRIVATE KEY')) {
+        privateKeyToUse = `-----BEGIN PRIVATE KEY-----\n${privateKeyToUse}\n-----END PRIVATE KEY-----`;
+      }
 
-    // Sign using RSA-SHA256 with the private key
-    const signature = crypto
-      .createSign('RSA-SHA256')
-      .update(dataToSign)
-      .sign(privateKeyToUse);
+      try {
+        // Sign using RSA-SHA256 with the private key
+        const signature = crypto
+          .createSign('RSA-SHA256')
+          .update(dataToSign)
+          .sign(privateKeyToUse);
+        
+        // Convert signature to base64url format manually
+        const base64Signature = signature.toString('base64')
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+
+        return `${dataToSign}.${base64Signature}`;
+      } catch (signingError) {
+        console.error('Signing error with RS256:', signingError);
+        // Fall through to fallback signing method
+      }
+    }
     
-    // Convert signature to base64url format manually
-    const base64Signature = signature.toString('base64')
+    // Fallback to HMAC-SHA256 for development or when RSA fails
+    console.warn('Using HMAC-SHA256 fallback signing (less secure, for development only)');
+    const hmacKey = PRIVATE_KEY === 'your-private-key-change-me' ? 'development-fallback-key' : PRIVATE_KEY;
+    const hmacSignature = crypto
+      .createHmac('sha256', hmacKey)
+      .update(dataToSign)
+      .digest('base64')
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=+$/, '');
-
-    return `${dataToSign}.${base64Signature}`;
+    
+    return `${dataToSign}.${hmacSignature}`;
   } catch (error) {
     console.error('Error creating signature:', error);
-    // Fallback to a simple hash signature for development purposes
-    return `${dataToSign}.${crypto.createHash('sha256').update(dataToSign).digest('hex')}`;
+    // Last resort fallback to a simple hash signature
+    const fallbackSignature = crypto.createHash('sha256').update(dataToSign).digest('hex');
+    return `${dataToSign}.${fallbackSignature}`;
   }
 }
 
@@ -673,64 +110,17 @@ function hashContent(content: string): string {
 }
 
 /**
- * Creates the verification badge HTML, including the toggleable metadata section.
+ * Creates the verification badge HTML from the template.
  */
 function createVerificationBadge(data: VerificationData): string {
   const formattedTimestamp = new Date(data.timestamp).toLocaleString();
   
-  return `
-    <div class="verification-badge">
-      <button class="toggle-btn" onclick="toggleVerificationMetadata(event)">
-        <span class="toggle-text">Show details</span>
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      <div class="verification-header">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke-width="2" stroke-linecap="round"
-             stroke-linejoin="round" stroke="currentColor" viewBox="0 0 24 24">
-          <path d="M20 6L9 17l-5-5"/>
-        </svg>
-        Verified Content
-      </div>
-      <div id="verification-metadata" class="verification-metadata">
-        <div onclick="copyToClipboard('${data.url}', event)" class="copyable-field" title="Click to copy URL">
-          <strong>URL:</strong> ${data.url}
-        </div>
-        <div onclick="copyToClipboard('${formattedTimestamp}', event)" class="copyable-field" title="Click to copy timestamp">
-          <strong>Timestamp:</strong> ${formattedTimestamp}
-        </div>
-        <div onclick="copyToClipboard('${data.contentHash}', event)" class="copyable-field" title="Click to copy content hash">
-          <strong>Content Hash:</strong> ${data.contentHash}
-        </div>
-        <div onclick="copyToClipboard('${data.signatureToken}', event)" class="copyable-field" title="Click to copy signature">
-          <strong>Signature:</strong> ${data.signatureToken}
-        </div>
-        <div onclick="copyToClipboard('${data.publicKey}', event)" class="copyable-field" title="Click to copy public key">
-          <strong>Public Key:</strong> ${data.publicKey}
-        </div>
-      </div>
-    </div>
-    ${TOGGLE_SCRIPT}
-  `;
-}
-
-/**
- * Creates a floating copy button at the bottom-right corner.
- */
-function createCopyButton(): string {
-  return `
-    <div class="copy-btn-container">
-      <button class="copy-button" onclick="copyContent(event)" title="Copy Page Content">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="24" height="24">
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-        </svg>
-        Copy Content
-      </button>
-      <span id="copy-success" class="copy-success">Content copied!</span>
-    </div>
-  `;
+  return BADGE_TEMPLATE
+    .replace(/\$\{url\}/g, data.url)
+    .replace(/\$\{timestamp\}/g, formattedTimestamp)
+    .replace(/\$\{contentHash\}/g, data.contentHash)
+    .replace(/\$\{signatureToken\}/g, data.signatureToken)
+    .replace(/\$\{publicKey\}/g, data.publicKey);
 }
 
 /**
@@ -758,10 +148,10 @@ function injectVerificationUI(
 
   let updatedContent = htmlContent;
 
-  // Add <meta> + <style> tags for verification and styling
+  // Add <meta> + <link> tags for verification and styling
   const headContent = `
     <meta name="x-signature-webhook" content='${signatureWebhook}'>
-    <style>${VERIFICATION_CSS}</style>
+    <link rel="stylesheet" href="${VERIFICATION_CSS_PATH}">
   `;
 
   // Insert into an existing <head>, or create a <head> if none
@@ -786,7 +176,7 @@ function injectVerificationUI(
     }
   }
 
-  // If user requested verification UI, inject badge + copy button
+  // If user requested verification UI, inject badge + copy button + JS script tag
   if (shouldShowVerification) {
     const bodyIndex = updatedContent.indexOf('<body');
     if (bodyIndex !== -1) {
@@ -795,8 +185,17 @@ function injectVerificationUI(
       updatedContent =
         updatedContent.slice(0, tagEndIndex) +
         createVerificationBadge(verificationData) +
-        createCopyButton() +
+        COPY_BUTTON_TEMPLATE +
         updatedContent.slice(tagEndIndex);
+    }
+
+    // Add JavaScript script tag just before closing body tag
+    const bodyEndIndex = updatedContent.indexOf('</body>');
+    if (bodyEndIndex !== -1) {
+      updatedContent =
+        updatedContent.slice(0, bodyEndIndex) +
+        `<script src="${VERIFICATION_JS_PATH}"></script>` +
+        updatedContent.slice(bodyEndIndex);
     }
   }
   
@@ -808,25 +207,15 @@ function injectVerificationUI(
  */
 function wrapContentWithSignatureViewer(content: string, signatureWebhook: string): string {
   const verificationData = JSON.parse(signatureWebhook) as VerificationData;
-
-  return `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="x-signature-webhook" content='${signatureWebhook}'>
-        <title>Proxied Content</title>
-        <style>${VERIFICATION_CSS}</style>
-      </head>
-      <body>
-        ${createVerificationBadge(verificationData)}
-        ${createCopyButton()}
-        <div class="content">
-          <pre>${escapeHtml(content)}</pre>
-        </div>
-      </body>
-    </html>
-  `;
+  const verificationBadge = createVerificationBadge(verificationData);
+  
+  return WRAPPER_TEMPLATE
+    .replace(/\$\{signatureWebhook\}/g, signatureWebhook)
+    .replace(/\$\{cssPath\}/g, VERIFICATION_CSS_PATH)
+    .replace(/\$\{jsPath\}/g, VERIFICATION_JS_PATH)
+    .replace(/\$\{verificationBadge\}/g, verificationBadge)
+    .replace(/\$\{copyButton\}/g, COPY_BUTTON_TEMPLATE)
+    .replace(/\$\{content\}/g, escapeHtml(content));
 }
 
 /**

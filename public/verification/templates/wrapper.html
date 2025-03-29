@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="x-signature-webhook" content='${signatureWebhook}'>
+    <title>Proxied Content</title>
+    <link rel="stylesheet" href="${cssPath}">
+  </head>
+  <body>
+    ${verificationBadge}
+    ${copyButton}
+    <div class="content">
+      <pre>${content}</pre>
+    </div>
+    <script src="${jsPath}"></script>
+  </body>
+</html> 
