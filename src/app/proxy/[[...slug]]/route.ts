@@ -155,13 +155,15 @@ body, html {
   font-size: 0.875rem;
   opacity: 0;
   transform: translateY(10px);
-  transition: all 0.3s;
+  transition: opacity 0.3s, transform 0.3s, visibility 0.3s;
   white-space: nowrap;
+  visibility: hidden;
 }
 
 .copy-success.show {
   opacity: 1;
   transform: translateY(0);
+  visibility: visible;
 }
 
 /* Copyable field styling */
@@ -217,12 +219,16 @@ body, html {
   border-radius: 4px;
   font-size: 0.875rem;
   z-index: 10000;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, opacity 0.3s, visibility 0.3s;
   white-space: nowrap;
+  visibility: hidden;
+  opacity: 0;
 }
 
 .field-copy-success.show {
   transform: translateX(-50%) translateY(0);
+  visibility: visible;
+  opacity: 1;
 }
 
 /* Content styling for non-HTML responses */
@@ -503,6 +509,14 @@ const TOGGLE_SCRIPT = `
         setTimeout(() => {
           notification.classList.remove('show');
         }, 2000);
+        
+        // Completely remove notification after animation completes
+        setTimeout(() => {
+          notification.style.display = 'none';
+          setTimeout(() => {
+            notification.style.display = '';
+          }, 100);
+        }, 2300);
       })
       .catch(err => {
         console.error('Failed to copy: ', err);
@@ -578,9 +592,19 @@ const TOGGLE_SCRIPT = `
       .then(() => {
         const successElem = document.getElementById('copy-success');
         successElem.classList.add('show');
+        
+        // Hide after delay
         setTimeout(() => {
           successElem.classList.remove('show');
         }, 2000);
+        
+        // Completely remove notification after animation completes
+        setTimeout(() => {
+          successElem.style.display = 'none';
+          setTimeout(() => {
+            successElem.style.display = '';
+          }, 100);
+        }, 2300);
       })
       .catch(err => {
         console.error('Failed to copy content: ', err);
