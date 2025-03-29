@@ -62,6 +62,60 @@ const VERIFICATION_CSS = `
   border-left: 2px solid #444;
   padding-left: 8px;
 }
+.copy-btn-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+}
+.copy-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  height: 44px;
+  border-radius: 22px;
+  background: #2196F3;
+  color: white;
+  border: none;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  gap: 8px;
+}
+.copy-button:hover {
+  background: #1976D2;
+  transform: scale(1.05);
+}
+.copy-button:active {
+  background: #0D47A1;
+  transform: scale(0.95);
+}
+.copy-button svg {
+  width: 24px;
+  height: 24px;
+}
+.copy-success {
+  position: absolute;
+  bottom: 55px;
+  right: 0;
+  background: rgba(0,0,0,0.7);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+.copy-success.show {
+  opacity: 1;
+  transform: translateY(0);
+}
 pre { white-space: pre-wrap; }
 `;
 
@@ -75,6 +129,39 @@ const TOGGLE_SCRIPT = `
     } else {
       elem.style.display = 'none';
     }
+  }
+
+  function copyContent(event) {
+    event.stopPropagation(); // Prevent toggling the metadata when clicking the button
+    
+    // Find the main content element based on context
+    let contentToCopy = '';
+    
+    // Check if we're in the wrapped content view (non-HTML content)
+    const preElement = document.querySelector('.content pre');
+    if (preElement) {
+      contentToCopy = preElement.innerText;
+    } else {
+      // For HTML content, copy the body contents excluding the verification badge
+      const badgeClone = document.querySelector('.verification-badge').cloneNode(true);
+      const tempDiv = document.createElement('div');
+      tempDiv.appendChild(document.body.cloneNode(true));
+      const badge = tempDiv.querySelector('.verification-badge');
+      if (badge) {
+        badge.remove();
+      }
+      contentToCopy = tempDiv.querySelector('body').innerHTML;
+    }
+    
+    navigator.clipboard.writeText(contentToCopy).then(() => {
+      const successElem = document.getElementById('copy-success');
+      successElem.classList.add('show');
+      setTimeout(() => {
+        successElem.classList.remove('show');
+      }, 2000);
+    }).catch(err => {
+      console.error('Failed to copy content: ', err);
+    });
   }
 </script>
 `;
@@ -134,6 +221,24 @@ function createVerificationBadge(data: VerificationData): string {
 }
 
 /**
+ * Creates a copy button that floats at the bottom corner
+ */
+function createCopyButton(): string {
+  return `
+    <div class="copy-btn-container">
+      <button class="copy-button" onclick="copyContent(event)" title="Copy Content">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+        </svg>
+        Copy Content
+      </button>
+      <span id="copy-success" class="copy-success">Content copied!</span>
+    </div>
+  `;
+}
+
+/**
  * Escapes HTML special characters in text.
  */
 function escapeHtml(text: string): string {
@@ -186,6 +291,7 @@ function injectVerificationUI(
       const verificationData = JSON.parse(signatureWebhook) as VerificationData;
       updatedContent = updatedContent.slice(0, tagEndIndex) + 
                       createVerificationBadge(verificationData) + 
+                      createCopyButton() +
                       updatedContent.slice(tagEndIndex);
     }
   }
@@ -227,6 +333,7 @@ function wrapContentWithSignatureViewer(content: string, signatureWebhook: strin
       </head>
       <body>
         ${createVerificationBadge(verificationData)}
+        ${createCopyButton()}
         <div class="content">
           <pre>${escapeHtml(content)}</pre>
         </div>
