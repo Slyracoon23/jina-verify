@@ -1,36 +1,118 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Jina-Verify
+
+![Jina-Verify](public/og-image.png)
+
+## The Challenge of Reliable AI Citations
+
+Large Language Models (LLMs) frequently generate information without proper source attribution, leading to hallucinations and unreliable outputs. When LLMs do provide citations, they often:
+
+- Generate fake or non-existent URLs
+- Cite sources that don't contain the referenced information
+- Misrepresent source content or quote incorrectly
+
+This creates significant barriers for users who need to verify information or trust AI-generated content.
+
+## Jina-Verify: The Solution
+
+Jina-Verify addresses these challenges by providing a simple, effective tool for generating verifiable reference links. These links:
+
+- Create trustworthy citations that LLMs can use
+- Ensure content authenticity and origin verification
+- Provide immutable references to source content
+- Enable transparency in AI-generated information
+
+## How It Works
+
+1. Enter the URL of the source webpage
+2. Jina-Verify generates a trusted verification link
+3. Share this link with LLMs when requesting information
+4. The LLM can now access and cite verified information
+
+## Technical Details
+
+### API Access
+
+The verification endpoint can be accessed programmatically without the UI:
+
+```bash
+# Access raw content with verification headers
+curl https://jina-verify.vercel.app/https://example.com
+
+# Add ?raw parameter to skip HTML wrapper
+curl https://jina-verify.vercel.app/https://example.com?raw=true
+```
+
+### Verification Headers
+
+Each response includes cryptographic verification in the headers:
+
+- `X-Signature-Token`: The cryptographically signed token that verifies content authenticity
+- `X-Public-Key`: The public key used for verification
+- `X-Signature-Webhook`: Contains the complete verification data JSON including:
+  - Original URL
+  - Timestamp of retrieval
+  - Content hash
+  - Signature token
+
+### Dual-mode Access
+
+- **LLMs and API clients**: Access the pure content with verification headers
+- **Human verification**: Visit the URL in a browser to see the content with an overlay verification UI that validates authenticity
+
+This design makes Jina-Verify both machine and human friendly, providing verification at every level.
+
+### Highlight and Share
+
+Jina-Verify includes a powerful highlighting feature that allows users to:
+
+- Select and highlight specific sections of verified content
+- Share these highlights with direct links to the source
+- Create targeted citations of specific claims or statements
+- Provide context-specific references for LLMs
+
+The "Highlight & Share" button in the verification UI makes it easy to share precisely the content that matters, ensuring that specific claims can be verified and cited accurately.
+
+![Jina-Verify Highlight Feature](public/image-proxy-highlight.png)
+![Jina-Verify Highlight Feature](public/image-proxy-highlighted.png)
+
 
 ## Getting Started
 
-First, run the development server:
+You can use Jina-Verify in two ways:
+
+### Online Version
+
+Visit our deployed application at [https://jina-verify.vercel.app](https://jina-verify.vercel.app) and start creating verified reference links immediately.
+
+### Run Locally
+
+To run the project locally:
 
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/jina-verify.git
+cd jina-verify
+
+# Install dependencies
+npm install
+# or
+yarn install
+# or
+pnpm install
+
+# Start the development server
 npm run dev
 # or
 yarn dev
 # or
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open [http://localhost:3000](http://localhost:3000) in your browser to use the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Benefits
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **For Researchers**: Ensure citations in AI-generated research are accurate and verifiable
+- **For Content Creators**: Protect your content and ensure proper attribution
+- **For Developers**: Build trust in AI applications by providing reliable information sources
+- **For Users**: Confidently verify claims made by AI systems
