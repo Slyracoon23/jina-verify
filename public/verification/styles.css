@@ -225,6 +225,16 @@ body, html {
   white-space: pre-wrap;
 }
 
+/* Highlighted text styling */
+.highlighted-text {
+  background-color: rgba(255, 230, 0, 0.4);
+  border-radius: 2px;
+  padding: 1px 0;
+  box-shadow: 0 0 0 1px rgba(255, 200, 0, 0.25);
+  position: relative;
+  display: inline;
+}
+
 /* Responsive design for smaller screens */
 @media (max-width: 768px) {
   .verification-badge {

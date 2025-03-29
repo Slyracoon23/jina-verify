@@ -131,6 +131,9 @@ function handleBrowserRequest(
     request.nextUrl.searchParams.has('signature') || 
     !request.nextUrl.searchParams.has('raw');
   
+  // Preserve the highlight parameter if present
+  const highlightParam = request.nextUrl.searchParams.get('highlight');
+  
   let processedContent;
   let finalContentType = result.contentType;
   
@@ -148,6 +151,25 @@ function handleBrowserRequest(
       result.signatureWebhook
     );
     finalContentType = 'text/html'; // override to HTML for the wrapper
+  }
+
+  // Add the highlight parameter to the page if it exists
+  if (highlightParam) {
+    const highlightScript = `
+      <script>
+        // Add highlight parameter to the existing URL params
+        if (window.location.search) {
+          if (!window.location.search.includes('highlight=')) {
+            window.history.replaceState({}, '', window.location.href + '&highlight=${encodeURIComponent(highlightParam)}');
+          }
+        } else {
+          window.history.replaceState({}, '', window.location.href + '?highlight=${encodeURIComponent(highlightParam)}');
+        }
+      </script>
+    `;
+    
+    // Insert the script right before the closing body tag
+    processedContent = processedContent.replace('</body>', `${highlightScript}</body>`);
   }
 
   return new NextResponse(processedContent, {

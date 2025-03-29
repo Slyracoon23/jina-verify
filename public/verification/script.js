@@ -223,11 +223,121 @@ function toggleVerificationMetadata(event) {
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     await verifyContent();
+    
+    // Apply highlighting if parameter exists
+    applyHighlighting();
   } catch (error) {
     console.error('Verification error:', error);
     updateBadgeStatus(false, "Error during verification: " + error.message);
   }
 });
+
+// Function to apply highlighting based on regex pattern
+function applyHighlighting() {
+  // Get the highlight parameter from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const highlightParam = urlParams.get('highlight');
+  
+  if (!highlightParam) return;
+  
+  try {
+    // For non-HTML content in the wrapper
+    const preElement = document.querySelector('.content pre');
+    if (preElement) {
+      // Apply highlighting to the pre content
+      const originalText = preElement.innerText;
+      const highlightedText = highlightText(originalText, highlightParam);
+      preElement.innerHTML = highlightedText;
+    } else {
+      // For HTML content, we need to be careful to only highlight text nodes
+      // Apply highlighting to text nodes only (excluding scripts, styles)
+      highlightTextNodes(document.body, highlightParam);
+    }
+  } catch (error) {
+    console.error('Error applying highlighting:', error);
+  }
+}
+
+// Simple text highlighting function that wraps matched substrings with span
+function highlightText(text, searchTerm) {
+  if (!searchTerm || !text) return text;
+  
+  // Escape special characters for safe HTML insertion
+  const escapeHtml = (str) => {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+  
+  // Case-insensitive search
+  const searchTermLower = searchTerm.toLowerCase();
+  const textLower = text.toLowerCase();
+  
+  let result = '';
+  let lastIndex = 0;
+  let index = textLower.indexOf(searchTermLower);
+  
+  while (index !== -1) {
+    // Add text before the match
+    result += escapeHtml(text.substring(lastIndex, index));
+    
+    // Add the highlighted match
+    const matchedText = text.substring(index, index + searchTerm.length);
+    result += `<span class="highlighted-text">${escapeHtml(matchedText)}</span>`;
+    
+    // Update search position
+    lastIndex = index + searchTerm.length;
+    index = textLower.indexOf(searchTermLower, lastIndex);
+  }
+  
+  // Add the remaining text
+  result += escapeHtml(text.substring(lastIndex));
+  
+  return result;
+}
+
+// Function to highlight text nodes without affecting HTML structure
+function highlightTextNodes(element, searchTerm) {
+  if (!element) return;
+  
+  // Ignore verification UI elements
+  if (element.classList && 
+     (element.classList.contains('verification-badge') || 
+      element.classList.contains('copy-btn-container'))) {
+    return;
+  }
+  
+  // Skip script and style tags
+  if (element.tagName === 'SCRIPT' || element.tagName === 'STYLE') {
+    return;
+  }
+  
+  // Process text nodes
+  if (element.nodeType === Node.TEXT_NODE && element.textContent.trim()) {
+    const originalText = element.textContent;
+    const textLower = originalText.toLowerCase();
+    const searchTermLower = searchTerm.toLowerCase();
+    
+    if (textLower.includes(searchTermLower)) {
+      // Create a wrapper span
+      const wrapper = document.createElement('span');
+      
+      // Replace text with highlighted version
+      wrapper.innerHTML = highlightText(originalText, searchTerm);
+      
+      // Replace the text node with our wrapper
+      element.parentNode.replaceChild(wrapper, element);
+    }
+  } else {
+    // Recursively process child nodes
+    Array.from(element.childNodes).forEach(child => {
+      highlightTextNodes(child, searchTerm);
+    });
+  }
+}
 
 function copyContent(event) {
   event.stopPropagation(); // Prevent toggling the metadata when clicking the button
