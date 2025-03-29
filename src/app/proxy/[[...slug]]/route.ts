@@ -25,37 +25,42 @@ const VERIFICATION_CSS = `
   position: fixed;
   top: 10px;
   right: 10px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid #ccc;
-  padding: 10px;
-  border-radius: 5px;
+  background: rgba(33, 33, 33, 0.8);
+  border: 1px solid #444;
+  padding: 12px;
+  border-radius: 8px;
   z-index: 9999;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.3);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  max-width: 300px;
+  max-width: 350px;
   cursor: pointer;
+  color: #f0f0f0;
+  backdrop-filter: blur(5px);
 }
 .verification-badge strong {
-  color: #2c7d32;
+  color: #4caf50;
   display: flex;
   align-items: center;
+  font-size: 1.1em;
+  margin-bottom: 8px;
 }
 .verification-badge strong:before {
   content: "✓";
   display: inline-block;
-  margin-right: 5px;
-  color: #2c7d32;
+  margin-right: 8px;
+  color: #4caf50;
   font-weight: bold;
 }
 .verification-metadata {
-  display: none;
   margin-top: 8px;
   font-size: 0.9em;
-  color: #333;
+  color: #ccc;
 }
 .verification-metadata div {
-  margin-bottom: 4px;
+  margin-bottom: 8px;
   word-break: break-all;
+  border-left: 2px solid #444;
+  padding-left: 8px;
 }
 pre { white-space: pre-wrap; }
 `;
@@ -65,7 +70,7 @@ const TOGGLE_SCRIPT = `
 <script>
   function toggleVerificationMetadata() {
     var elem = document.getElementById('verification-metadata');
-    if (elem.style.display === 'none' || elem.style.display === '') {
+    if (elem.style.display === 'none') {
       elem.style.display = 'block';
     } else {
       elem.style.display = 'none';
@@ -201,7 +206,24 @@ function wrapContentWithSignatureViewer(content: string, signatureWebhook: strin
         <meta charset="UTF-8">
         <meta name="x-signature-webhook" content='${signatureWebhook}'>
         <title>Proxied Content</title>
-        <style>${VERIFICATION_CSS}</style>
+        <style>${VERIFICATION_CSS}
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          padding: 20px;
+          margin: 0;
+        }
+        .content {
+          margin-top: 20px;
+          padding: 20px;
+          border-radius: 8px;
+          border: 1px solid #444;
+        }
+        pre {
+          padding: 15px;
+          border-radius: 5px;
+          overflow-x: auto;
+        }
+        </style>
       </head>
       <body>
         ${createVerificationBadge(verificationData)}
@@ -245,6 +267,13 @@ export async function GET(
   // Check for UI display option - we'll always generate the signature
   const shouldShowVerificationUI = request.nextUrl.searchParams.has('signature');
   const targetUrl = normalizeUrl(slug);
+
+  // Redirect to add signature parameter if not present
+  if (!shouldShowVerificationUI) {
+    const currentUrl = request.nextUrl.clone();
+    currentUrl.searchParams.set('signature', 'true');
+    return NextResponse.redirect(currentUrl);
+  }
 
   try {
     // Validate URL format
