@@ -19,122 +19,169 @@ interface VerificationData {
   signatureToken: string;
 }
 
-// Common CSS for verification UI - used in multiple places
+/**
+ * Updated CSS for a cleaner, more professional look.
+ */
 const VERIFICATION_CSS = `
+/* Global reset for toggling, fonts, etc. */
+* {
+  box-sizing: border-box;
+}
+
+body, html {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Verification badge container */
 .verification-badge {
   position: fixed;
-  top: 10px;
-  right: 10px;
-  background: rgba(33, 33, 33, 0.8);
-  border: 1px solid #444;
-  padding: 12px;
+  top: 20px;
+  right: 20px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
   border-radius: 8px;
+  padding: 16px;
   z-index: 9999;
-  box-shadow: 0 3px 6px rgba(0,0,0,0.3);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  max-width: 350px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+  color: #333;
   cursor: pointer;
-  color: #f0f0f0;
-  backdrop-filter: blur(5px);
+  max-width: 360px;
+  transition: all 0.2s ease-in-out;
 }
-.verification-badge strong {
-  color: #4caf50;
+
+.verification-badge:hover {
+  box-shadow: 0 6px 12px rgba(0,0,0,0.12);
+}
+
+/* Header portion of the badge */
+.verification-header {
   display: flex;
   align-items: center;
-  font-size: 1.1em;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
   margin-bottom: 8px;
 }
-.verification-badge strong:before {
-  content: "✓";
-  display: inline-block;
+
+.verification-header svg {
   margin-right: 8px;
-  color: #4caf50;
-  font-weight: bold;
+  width: 20px;
+  height: 20px;
+  stroke: #4caf50;
 }
+
+/* Metadata is hidden by default; toggled by JS */
 .verification-metadata {
-  margin-top: 8px;
-  font-size: 0.9em;
-  color: #ccc;
+  display: none;
+  margin-top: 12px;
+  font-size: 0.875rem;
+  color: #555;
+  line-height: 1.4;
 }
+
 .verification-metadata div {
   margin-bottom: 8px;
-  word-break: break-all;
-  border-left: 2px solid #444;
   padding-left: 8px;
+  border-left: 3px solid #4caf50;
+  word-break: break-all;
 }
+
+/* Copy button container */
 .copy-btn-container {
   position: fixed;
   bottom: 20px;
   right: 20px;
   z-index: 9999;
 }
+
+/* Copy button styling */
 .copy-button {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: 0 20px;
-  height: 44px;
-  border-radius: 22px;
-  background: #2196F3;
-  color: white;
-  border: none;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-  cursor: pointer;
-  transition: all 0.2s;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 16px;
-  font-weight: 500;
   gap: 8px;
+  background: #0069d9;
+  color: #ffffff;
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  transition: background 0.2s ease-in-out, transform 0.2s ease-in-out;
 }
+
 .copy-button:hover {
-  background: #1976D2;
-  transform: scale(1.05);
+  background: #0053aa;
+  transform: translateY(-1px);
 }
+
 .copy-button:active {
-  background: #0D47A1;
-  transform: scale(0.95);
+  background: #003d82;
+  transform: scale(0.98);
 }
+
 .copy-button svg {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
 }
+
+/* Copy success message */
 .copy-success {
   position: absolute;
   bottom: 55px;
   right: 0;
-  background: rgba(0,0,0,0.7);
-  color: white;
+  background: #333;
+  color: #fff;
   padding: 8px 12px;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 0.875rem;
   opacity: 0;
   transform: translateY(10px);
   transition: all 0.3s;
   white-space: nowrap;
 }
+
 .copy-success.show {
   opacity: 1;
   transform: translateY(0);
 }
-pre { white-space: pre-wrap; }
+
+/* Content styling for non-HTML responses */
+.content {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.content pre {
+  padding: 15px;
+  border-radius: 5px;
+  background: #fafafa;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
 `;
 
-// Common JavaScript for toggling metadata
+/**
+ * JavaScript for toggling metadata and copying content.
+ */
 const TOGGLE_SCRIPT = `
 <script>
   function toggleVerificationMetadata() {
-    var elem = document.getElementById('verification-metadata');
-    if (elem.style.display === 'none') {
-      elem.style.display = 'block';
+    var metadata = document.getElementById('verification-metadata');
+    if (metadata.style.display === 'none' || !metadata.style.display) {
+      metadata.style.display = 'block';
     } else {
-      elem.style.display = 'none';
+      metadata.style.display = 'none';
     }
   }
 
   function copyContent(event) {
     event.stopPropagation(); // Prevent toggling the metadata when clicking the button
     
-    // Find the main content element based on context
     let contentToCopy = '';
     
     // Check if we're in the wrapped content view (non-HTML content)
@@ -143,25 +190,30 @@ const TOGGLE_SCRIPT = `
       contentToCopy = preElement.innerText;
     } else {
       // For HTML content, copy the body contents excluding the verification badge
-      const badgeClone = document.querySelector('.verification-badge').cloneNode(true);
       const tempDiv = document.createElement('div');
       tempDiv.appendChild(document.body.cloneNode(true));
       const badge = tempDiv.querySelector('.verification-badge');
       if (badge) {
         badge.remove();
       }
+      const copyBtnContainer = tempDiv.querySelector('.copy-btn-container');
+      if (copyBtnContainer) {
+        copyBtnContainer.remove();
+      }
       contentToCopy = tempDiv.querySelector('body').innerHTML;
     }
     
-    navigator.clipboard.writeText(contentToCopy).then(() => {
-      const successElem = document.getElementById('copy-success');
-      successElem.classList.add('show');
-      setTimeout(() => {
-        successElem.classList.remove('show');
-      }, 2000);
-    }).catch(err => {
-      console.error('Failed to copy content: ', err);
-    });
+    navigator.clipboard.writeText(contentToCopy)
+      .then(() => {
+        const successElem = document.getElementById('copy-success');
+        successElem.classList.add('show');
+        setTimeout(() => {
+          successElem.classList.remove('show');
+        }, 2000);
+      })
+      .catch(err => {
+        console.error('Failed to copy content: ', err);
+      });
   }
 </script>
 `;
@@ -171,9 +223,8 @@ const TOGGLE_SCRIPT = `
  */
 function createSignatureToken(targetUrl: string, timestamp: number, contentHash: string): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
-
   const issuedAt = Math.floor(Date.now() / 1000);
-  const expirationTime = issuedAt + 3600;
+  const expirationTime = issuedAt + 3600; // 1 hour from now
 
   const payloadObj: JwtPayload = {
     url: targetUrl,
@@ -201,14 +252,20 @@ function hashContent(content: string): string {
 }
 
 /**
- * Creates the verification badge HTML
+ * Creates the verification badge HTML, including the toggleable metadata section.
  */
 function createVerificationBadge(data: VerificationData): string {
   const formattedTimestamp = new Date(data.timestamp).toLocaleString();
   
   return `
     <div class="verification-badge" onclick="toggleVerificationMetadata()">
-      <strong>Verified Content</strong>
+      <div class="verification-header">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round" stroke="currentColor" viewBox="0 0 24 24">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>
+        Verified Content
+      </div>
       <div id="verification-metadata" class="verification-metadata">
         <div><strong>URL:</strong> ${data.url}</div>
         <div><strong>Timestamp:</strong> ${formattedTimestamp}</div>
@@ -221,15 +278,16 @@ function createVerificationBadge(data: VerificationData): string {
 }
 
 /**
- * Creates a copy button that floats at the bottom corner
+ * Creates a floating copy button at the bottom-right corner.
  */
 function createCopyButton(): string {
   return `
     <div class="copy-btn-container">
-      <button class="copy-button" onclick="copyContent(event)" title="Copy Content">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <button class="copy-button" onclick="copyContent(event)" title="Copy Page Content">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round" stroke="currentColor" viewBox="0 0 24 24">
           <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
         </svg>
         Copy Content
       </button>
@@ -239,60 +297,69 @@ function createCopyButton(): string {
 }
 
 /**
- * Escapes HTML special characters in text.
+ * Safely escapes HTML special characters.
  */
 function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;")
-             .replace(/</g, "&lt;")
-             .replace(/>/g, "&gt;");
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 /**
- * Injects verification metadata into HTML content
+ * Injects verification UI into HTML content (badge + copy button + style + meta).
  */
 function injectVerificationUI(
   htmlContent: string, 
   signatureWebhook: string, 
   shouldShowVerification: boolean
 ): string {
-  // If content is not HTML, just return it as is
+  // If content doesn't look like HTML, return as-is
   if (!htmlContent.includes('<!DOCTYPE html>') && !htmlContent.includes('<html')) {
     return htmlContent;
   }
 
   let updatedContent = htmlContent;
+
+  // Add <meta> + <style> tags for verification and styling
   const headContent = `
     <meta name="x-signature-webhook" content='${signatureWebhook}'>
-    <link id="verification-styles" rel="stylesheet" href="/proxy/verification.css">
     <style>${VERIFICATION_CSS}</style>
   `;
 
-  // Insert into existing head tag or create one
+  // Insert into an existing <head>, or create a <head> if none
   const headIndex = updatedContent.indexOf('<head>');
   const headEndIndex = updatedContent.indexOf('</head>');
   
   if (headIndex !== -1 && headEndIndex !== -1) {
-    updatedContent = updatedContent.slice(0, headEndIndex) + headContent + updatedContent.slice(headEndIndex);
+    // Insert the style/meta content before </head>
+    updatedContent =
+      updatedContent.slice(0, headEndIndex) +
+      headContent +
+      updatedContent.slice(headEndIndex);
   } else {
+    // If no head tag, insert one
     const htmlTagIndex = updatedContent.indexOf('<html');
     if (htmlTagIndex !== -1) {
       const tagEndIndex = updatedContent.indexOf('>', htmlTagIndex) + 1;
-      updatedContent = updatedContent.slice(0, tagEndIndex) + 
-                      `\n<head>${headContent}</head>\n` + 
-                      updatedContent.slice(tagEndIndex);
+      updatedContent =
+        updatedContent.slice(0, tagEndIndex) +
+        `\n<head>${headContent}</head>\n` +
+        updatedContent.slice(tagEndIndex);
     }
   }
 
-  // Inject badge if requested
+  // If user requested verification UI, inject badge + copy button
   if (shouldShowVerification) {
     const bodyIndex = updatedContent.indexOf('<body');
     if (bodyIndex !== -1) {
       const tagEndIndex = updatedContent.indexOf('>', bodyIndex) + 1;
       const verificationData = JSON.parse(signatureWebhook) as VerificationData;
-      updatedContent = updatedContent.slice(0, tagEndIndex) + 
-                      createVerificationBadge(verificationData) + 
-                      createCopyButton() +
-                      updatedContent.slice(tagEndIndex);
+      updatedContent =
+        updatedContent.slice(0, tagEndIndex) +
+        createVerificationBadge(verificationData) +
+        createCopyButton() +
+        updatedContent.slice(tagEndIndex);
     }
   }
   
@@ -300,7 +367,7 @@ function injectVerificationUI(
 }
 
 /**
- * Wraps non-HTML content in a basic HTML template with verification UI
+ * Wraps non-HTML content in an HTML template with verification UI.
  */
 function wrapContentWithSignatureViewer(content: string, signatureWebhook: string): string {
   const verificationData = JSON.parse(signatureWebhook) as VerificationData;
@@ -312,24 +379,7 @@ function wrapContentWithSignatureViewer(content: string, signatureWebhook: strin
         <meta charset="UTF-8">
         <meta name="x-signature-webhook" content='${signatureWebhook}'>
         <title>Proxied Content</title>
-        <style>${VERIFICATION_CSS}
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-          padding: 20px;
-          margin: 0;
-        }
-        .content {
-          margin-top: 20px;
-          padding: 20px;
-          border-radius: 8px;
-          border: 1px solid #444;
-        }
-        pre {
-          padding: 15px;
-          border-radius: 5px;
-          overflow-x: auto;
-        }
-        </style>
+        <style>${VERIFICATION_CSS}</style>
       </head>
       <body>
         ${createVerificationBadge(verificationData)}
@@ -343,7 +393,7 @@ function wrapContentWithSignatureViewer(content: string, signatureWebhook: strin
 }
 
 /**
- * Normalizes URL from slug parts
+ * Normalizes the URL from slug parts (ensures proper protocol).
  */
 function normalizeUrl(slugParts: string[]): string {
   const url = slugParts.join('/');
@@ -353,17 +403,17 @@ function normalizeUrl(slugParts: string[]): string {
 }
 
 /**
- * GET request handler that acts as a reverse proxy to the Jina Reader.
+ * GET request handler: reverse proxy to the Jina Reader (r.jina.ai).
+ * Fetches content, signs it, optionally injects the verification UI, and returns the response.
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: { slug?: string[] } }
 ) {
-  // Await params before using its properties
   const resolvedParams = await params;
   const slug = resolvedParams.slug || [];
 
-  // Error if no URL provided
+  // Require a URL in the path
   if (slug.length === 0) {
     return NextResponse.json(
       { error: 'URL is required in the path (e.g., /proxy/https://example.com)' },
@@ -371,7 +421,7 @@ export async function GET(
     );
   }
 
-  // Check for UI display option - we'll always generate the signature
+  // Check if we should display the verification UI
   const shouldShowVerificationUI = request.nextUrl.searchParams.has('signature');
   const targetUrl = normalizeUrl(slug);
 
@@ -393,8 +443,8 @@ export async function GET(
 
     let contentType = response.headers.get('content-type') || 'text/markdown';
     let content = await response.text();
-    
-    // Always create verification data
+
+    // Create verification data
     const contentHash = hashContent(content);
     const signatureToken = createSignatureToken(targetUrl, fetchTimestamp, contentHash);
     const verificationData: VerificationData = {
@@ -405,24 +455,22 @@ export async function GET(
     };
     const signatureWebhook = JSON.stringify(verificationData);
 
-    // Redirect to add signature parameter if not present
+    // If ?signature= is missing, redirect to add it
     if (!shouldShowVerificationUI) {
       const currentUrl = request.nextUrl.clone();
       currentUrl.searchParams.set('signature', signatureToken);
       return NextResponse.redirect(currentUrl);
     }
 
-    // Modify content based on content type and UI display preference
+    // Inject verification UI if it's HTML, or wrap if it's non-HTML
     if (contentType.includes('text/html')) {
-      // Always inject signature metadata, but only show verification UI if requested
       content = injectVerificationUI(content, signatureWebhook, shouldShowVerificationUI);
     } else if (shouldShowVerificationUI) {
-      // For non-HTML content, wrap with verification UI if requested
       content = wrapContentWithSignatureViewer(content, signatureWebhook);
-      contentType = 'text/html'; // override content type to HTML
+      contentType = 'text/html'; // override to HTML
     }
 
-    // Return the content with appropriate headers
+    // Return proxied content with verification data in headers
     return new NextResponse(content, {
       headers: {
         'Content-Type': contentType,
