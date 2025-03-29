@@ -18,10 +18,9 @@ const PUBLIC_KEY = process.env.PUBLIC_KEY || 'your-public-key-change-me';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { domain?: string[] } }
+  { params }: { params: Promise<{ domain: string[] }> }
 ) {
-  const resolvedParams = await params;
-  const domain = resolvedParams.domain || [];
+  const { domain = [] } = await params;
 
   // Require a URL in the path
   if (domain.length === 0) {
