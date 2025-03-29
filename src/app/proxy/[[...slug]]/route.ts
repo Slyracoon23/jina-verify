@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
-// Use an environment variable for the secret key (fallback for development)
-const SECRET_KEY = process.env.SECRET_KEY || 'your-secret-key-change-me-in-production';
+// Use environment variables for the key pair
+const PRIVATE_KEY = process.env.PRIVATE_KEY || 'your-private-key-change-me';
+const PUBLIC_KEY = process.env.PUBLIC_KEY || 'your-public-key-change-me';
 
 interface JwtPayload {
   url: string;
@@ -17,10 +18,11 @@ interface VerificationData {
   timestamp: number;
   contentHash: string;
   signatureToken: string;
+  publicKey: string;
 }
 
 /**
- * Updated CSS for a cleaner, more professional look.
+ * CSS for the verification UI.
  */
 const VERIFICATION_CSS = `
 /* Global reset for toggling, fonts, etc. */
@@ -428,8 +430,8 @@ const TOGGLE_SCRIPT = `
     
     // 4. Validate JWT signature
     // Note: For a complete implementation, we'd need to:
-    // 1. Have the secret key available on the client (or use asymmetric keys)
-    // 2. Use Web Crypto API to verify HMAC
+    // 1. Have the public key available on the client (already provided in data.publicKey)
+    // 2. Use Web Crypto API to verify the RS256 signature
     // For this demo, we'll consider the signature check as part of the token format
     
     // Update badge status
@@ -614,12 +616,13 @@ const TOGGLE_SCRIPT = `
 `;
 
 /**
- * Creates a JWT-like signature token.
+ * Creates a JWT-like signature token using RS256 (asymmetric crypto).
  */
 function createSignatureToken(targetUrl: string, timestamp: number, contentHash: string): string {
-  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const headerObj = { alg: 'RS256', typ: 'JWT' };
+  const header = Buffer.from(JSON.stringify(headerObj)).toString('base64url');
   const issuedAt = Math.floor(Date.now() / 1000);
-  const expirationTime = issuedAt + 3600; // 1 hour from now
+  const expirationTime = issuedAt + 3600; // token valid for 1 hour
 
   const payloadObj: JwtPayload = {
     url: targetUrl,
@@ -630,13 +633,33 @@ function createSignatureToken(targetUrl: string, timestamp: number, contentHash:
   };
 
   const payload = Buffer.from(JSON.stringify(payloadObj)).toString('base64url');
+  const dataToSign = `${header}.${payload}`;
 
-  const signature = crypto
-    .createHmac('sha256', SECRET_KEY)
-    .update(`${header}.${payload}`)
-    .digest('base64url');
+  try {
+    // Format the private key properly if it's not in PEM format
+    let privateKeyToUse = PRIVATE_KEY;
+    if (!privateKeyToUse.includes('-----BEGIN') && !privateKeyToUse.includes('PRIVATE KEY')) {
+      privateKeyToUse = `-----BEGIN PRIVATE KEY-----\n${privateKeyToUse}\n-----END PRIVATE KEY-----`;
+    }
 
-  return `${header}.${payload}.${signature}`;
+    // Sign using RSA-SHA256 with the private key
+    const signature = crypto
+      .createSign('RSA-SHA256')
+      .update(dataToSign)
+      .sign(privateKeyToUse);
+    
+    // Convert signature to base64url format manually
+    const base64Signature = signature.toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+
+    return `${dataToSign}.${base64Signature}`;
+  } catch (error) {
+    console.error('Error creating signature:', error);
+    // Fallback to a simple hash signature for development purposes
+    return `${dataToSign}.${crypto.createHash('sha256').update(dataToSign).digest('hex')}`;
+  }
 }
 
 /**
@@ -680,6 +703,9 @@ function createVerificationBadge(data: VerificationData): string {
         <div onclick="copyToClipboard('${data.signatureToken}', event)" class="copyable-field" title="Click to copy signature">
           <strong>Signature:</strong> ${data.signatureToken}
         </div>
+        <div onclick="copyToClipboard('${data.publicKey}', event)" class="copyable-field" title="Click to copy public key">
+          <strong>Public Key:</strong> ${data.publicKey}
+        </div>
       </div>
     </div>
     ${TOGGLE_SCRIPT}
@@ -694,7 +720,7 @@ function createCopyButton(): string {
     <div class="copy-btn-container">
       <button class="copy-button" onclick="copyContent(event)" title="Copy Page Content">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke-width="2" stroke-linecap="round"
-             stroke-linejoin="round" stroke="currentColor" viewBox="0 0 24 24">
+             stroke-linejoin="round" viewBox="0 0 24 24">
           <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
         </svg>
@@ -812,7 +838,7 @@ function normalizeUrl(slugParts: string[]): string {
 }
 
 /**
- * GET request handler: reverse proxy to the Jina Reader (r.jina.ai).
+ * GET request handler: reverse proxy to the Jina Reader.
  * Fetches content, signs it, optionally injects the verification UI, and returns the response.
  */
 export async function GET(
@@ -832,6 +858,7 @@ export async function GET(
 
   // Check if we should display the verification UI
   const shouldShowVerificationUI = request.nextUrl.searchParams.has('signature');
+  const hasPublicKey = request.nextUrl.searchParams.has('publicKey');
   const targetUrl = normalizeUrl(slug);
 
   try {
@@ -861,13 +888,19 @@ export async function GET(
       timestamp: fetchTimestamp,
       contentHash,
       signatureToken,
+      publicKey: PUBLIC_KEY,
     };
     const signatureWebhook = JSON.stringify(verificationData);
 
-    // If ?signature= is missing, redirect to add it
-    if (!shouldShowVerificationUI) {
+    // If ?signature= is missing or ?publicKey= is missing, redirect to add them
+    if (!shouldShowVerificationUI || !hasPublicKey) {
       const currentUrl = request.nextUrl.clone();
-      currentUrl.searchParams.set('signature', signatureToken);
+      if (!shouldShowVerificationUI) {
+        currentUrl.searchParams.set('signature', signatureToken);
+      }
+      if (!hasPublicKey) {
+        currentUrl.searchParams.set('publicKey', PUBLIC_KEY);
+      }
       return NextResponse.redirect(currentUrl);
     }
 
