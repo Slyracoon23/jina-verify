@@ -4,8 +4,11 @@ export const runtime = 'edge';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug?: string[] } }
+  context: { params: { slug?: string[] } }
 ) {
+  // We need to properly await the params before using them
+  const params = await context.params;
+  
   // Get the complete URL path including all segments after /proxy/
   // The slug param contains all segments as an array
   // For example, for /proxy/https://example.com/path, slug would be ['https:', '', 'example.com', 'path']
