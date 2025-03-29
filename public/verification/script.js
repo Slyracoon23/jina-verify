@@ -242,6 +242,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
+// Add global variable to track if share modal is open
+let isShareModalOpen = false;
+
 // Set up text highlighting functionality
 function setupTextHighlighting() {
   // Create highlight toolbar element
@@ -262,6 +265,9 @@ function setupTextHighlighting() {
   
   // Position toolbar near selection when text is selected
   document.addEventListener('mouseup', function() {
+    // Don't show the toolbar if the share modal is open
+    if (isShareModalOpen) return;
+    
     const selection = window.getSelection();
     if (selection.toString().trim().length > 0) {
       const range = selection.getRangeAt(0);
@@ -316,6 +322,9 @@ function setupTextHighlighting() {
 
 // Create a shareable link with the highlighted text
 function createHighlightShareLink(selectedText) {
+  // Set flag to prevent toolbar from appearing
+  isShareModalOpen = true;
+  
   // Get current URL
   const currentUrl = window.location.href;
   
@@ -340,7 +349,7 @@ function createHighlightShareLink(selectedText) {
           Copy Link
         </button>
       </div>
-      <div class="copy-success-indicator hidden">
+      <div class="copy-success-indicator">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
           <polyline points="22 4 12 14.01 9 11.01"></polyline>
@@ -435,13 +444,20 @@ function createHighlightShareLink(selectedText) {
       gap: 8px;
       color: #16a34a;
       font-size: 14px;
-      animation: slideUp 0.3s ease-out;
-      transition: opacity 0.3s, transform 0.3s;
-    }
-    .copy-success-indicator.hidden {
+      margin-top: 12px;
+      border-top: none;
+      padding: 0;
       opacity: 0;
       transform: translateY(10px);
+      transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none;
     }
+    
+    .copy-success-indicator.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
     .copy-success-indicator svg {
       stroke: #16a34a;
     }
@@ -490,6 +506,17 @@ function createHighlightShareLink(selectedText) {
   `;
   document.head.appendChild(style);
   
+  // Don't auto-select the text to avoid automatic copying
+  // Instead, focus the input without selecting
+  setTimeout(() => {
+    linkInput.focus();
+    
+    // Ensure success indicator is initially hidden
+    const successIndicator = modal.querySelector('.copy-success-indicator');
+    successIndicator.style.opacity = '0';
+    successIndicator.style.transform = 'translateY(10px)';
+  }, 100);
+  
   // Copy link button handler
   const copyBtn = modal.querySelector('.copy-link-btn');
   const linkInput = modal.querySelector('.highlight-link');
@@ -499,7 +526,9 @@ function createHighlightShareLink(selectedText) {
     copyToClipboard(linkInput.value).then(success => {
       if (success) {
         // Show success indicator
-        successIndicator.classList.remove('hidden');
+        successIndicator.classList.add('visible');
+        successIndicator.style.opacity = '1';
+        successIndicator.style.transform = 'translateY(0)';
         
         // Auto-close modal after delay
         setTimeout(() => {
@@ -509,6 +538,8 @@ function createHighlightShareLink(selectedText) {
           
           setTimeout(() => {
             document.body.removeChild(modal);
+            // Reset share modal flag
+            isShareModalOpen = false;
           }, 300);
         }, 1500);
       }
@@ -524,6 +555,8 @@ function createHighlightShareLink(selectedText) {
       
       setTimeout(() => {
         document.body.removeChild(modal);
+        // Reset share modal flag
+        isShareModalOpen = false;
       }, 300);
     }
   });
