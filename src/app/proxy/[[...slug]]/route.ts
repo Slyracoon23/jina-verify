@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
-
 // Use an environment variable for the secret key (fallback for development)
 const SECRET_KEY = process.env.SECRET_KEY || 'your-secret-key-change-me-in-production';
 
@@ -13,18 +12,74 @@ interface JwtPayload {
   exp: number;
 }
 
+interface VerificationData {
+  url: string;
+  timestamp: number;
+  contentHash: string;
+  signatureToken: string;
+}
+
+// Common CSS for verification UI - used in multiple places
+const VERIFICATION_CSS = `
+.verification-badge {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #ccc;
+  padding: 10px;
+  border-radius: 5px;
+  z-index: 9999;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  max-width: 300px;
+  cursor: pointer;
+}
+.verification-badge strong {
+  color: #2c7d32;
+  display: flex;
+  align-items: center;
+}
+.verification-badge strong:before {
+  content: "✓";
+  display: inline-block;
+  margin-right: 5px;
+  color: #2c7d32;
+  font-weight: bold;
+}
+.verification-metadata {
+  display: none;
+  margin-top: 8px;
+  font-size: 0.9em;
+  color: #333;
+}
+.verification-metadata div {
+  margin-bottom: 4px;
+  word-break: break-all;
+}
+pre { white-space: pre-wrap; }
+`;
+
+// Common JavaScript for toggling metadata
+const TOGGLE_SCRIPT = `
+<script>
+  function toggleVerificationMetadata() {
+    var elem = document.getElementById('verification-metadata');
+    if (elem.style.display === 'none' || elem.style.display === '') {
+      elem.style.display = 'block';
+    } else {
+      elem.style.display = 'none';
+    }
+  }
+</script>
+`;
+
 /**
  * Creates a JWT-like signature token.
- *
- * @param targetUrl - The URL being proxied.
- * @param timestamp - The timestamp when the fetch occurred.
- * @param contentHash - The SHA-256 hash of the fetched content.
- * @returns A JWT-like token string.
  */
 function createSignatureToken(targetUrl: string, timestamp: number, contentHash: string): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
 
-  // Set issued at time and token expiration (e.g., valid for 1 hour)
   const issuedAt = Math.floor(Date.now() / 1000);
   const expirationTime = issuedAt + 3600;
 
@@ -48,12 +103,124 @@ function createSignatureToken(targetUrl: string, timestamp: number, contentHash:
 
 /**
  * Generates a SHA-256 hash for the provided content.
- *
- * @param content - The content to hash.
- * @returns The content hash as a hexadecimal string.
  */
 function hashContent(content: string): string {
   return crypto.createHash('sha256').update(content).digest('hex');
+}
+
+/**
+ * Creates the verification badge HTML
+ */
+function createVerificationBadge(data: VerificationData): string {
+  const formattedTimestamp = new Date(data.timestamp).toLocaleString();
+  
+  return `
+    <div class="verification-badge" onclick="toggleVerificationMetadata()">
+      <strong>Verified Content</strong>
+      <div id="verification-metadata" class="verification-metadata">
+        <div><strong>URL:</strong> ${data.url}</div>
+        <div><strong>Timestamp:</strong> ${formattedTimestamp}</div>
+        <div><strong>Content Hash:</strong> ${data.contentHash}</div>
+        <div><strong>Signature:</strong> ${data.signatureToken}</div>
+      </div>
+    </div>
+    ${TOGGLE_SCRIPT}
+  `;
+}
+
+/**
+ * Escapes HTML special characters in text.
+ */
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, "&amp;")
+             .replace(/</g, "&lt;")
+             .replace(/>/g, "&gt;");
+}
+
+/**
+ * Injects verification metadata into HTML content
+ */
+function injectVerificationUI(
+  htmlContent: string, 
+  signatureWebhook: string, 
+  shouldShowVerification: boolean
+): string {
+  // If content is not HTML, just return it as is
+  if (!htmlContent.includes('<!DOCTYPE html>') && !htmlContent.includes('<html')) {
+    return htmlContent;
+  }
+
+  let updatedContent = htmlContent;
+  const headContent = `
+    <meta name="x-signature-webhook" content='${signatureWebhook}'>
+    <link id="verification-styles" rel="stylesheet" href="/proxy/verification.css">
+    <style>${VERIFICATION_CSS}</style>
+  `;
+
+  // Insert into existing head tag or create one
+  const headIndex = updatedContent.indexOf('<head>');
+  const headEndIndex = updatedContent.indexOf('</head>');
+  
+  if (headIndex !== -1 && headEndIndex !== -1) {
+    updatedContent = updatedContent.slice(0, headEndIndex) + headContent + updatedContent.slice(headEndIndex);
+  } else {
+    const htmlTagIndex = updatedContent.indexOf('<html');
+    if (htmlTagIndex !== -1) {
+      const tagEndIndex = updatedContent.indexOf('>', htmlTagIndex) + 1;
+      updatedContent = updatedContent.slice(0, tagEndIndex) + 
+                      `\n<head>${headContent}</head>\n` + 
+                      updatedContent.slice(tagEndIndex);
+    }
+  }
+
+  // Inject badge if requested
+  if (shouldShowVerification) {
+    const bodyIndex = updatedContent.indexOf('<body');
+    if (bodyIndex !== -1) {
+      const tagEndIndex = updatedContent.indexOf('>', bodyIndex) + 1;
+      const verificationData = JSON.parse(signatureWebhook) as VerificationData;
+      updatedContent = updatedContent.slice(0, tagEndIndex) + 
+                      createVerificationBadge(verificationData) + 
+                      updatedContent.slice(tagEndIndex);
+    }
+  }
+  
+  return updatedContent;
+}
+
+/**
+ * Wraps non-HTML content in a basic HTML template with verification UI
+ */
+function wrapContentWithSignatureViewer(content: string, signatureWebhook: string): string {
+  const verificationData = JSON.parse(signatureWebhook) as VerificationData;
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="x-signature-webhook" content='${signatureWebhook}'>
+        <title>Proxied Content</title>
+        <style>${VERIFICATION_CSS}</style>
+      </head>
+      <body>
+        ${createVerificationBadge(verificationData)}
+        <div class="content">
+          <pre>${escapeHtml(content)}</pre>
+        </div>
+      </body>
+    </html>
+  `;
+}
+
+/**
+ * Normalizes URL from slug parts
+ */
+function normalizeUrl(slugParts: string[]): string {
+  const url = slugParts.join('/');
+  return url
+    .replace(/^https:\/(?!\/)/, 'https://')
+    .replace(/^http:\/(?!\/)/, 'http://');
 }
 
 /**
@@ -61,11 +228,13 @@ function hashContent(content: string): string {
  */
 export async function GET(
   request: NextRequest,
-  context: { params: { slug?: string[] } }
+  { params }: { params: { slug?: string[] } }
 ) {
-  // Destructure the slug array from context parameters
-  const { slug = [] } = context.params;
+  // Await params before using its properties
+  const resolvedParams = await params;
+  const slug = resolvedParams.slug || [];
 
+  // Error if no URL provided
   if (slug.length === 0) {
     return NextResponse.json(
       { error: 'URL is required in the path (e.g., /proxy/https://example.com)' },
@@ -73,46 +242,51 @@ export async function GET(
     );
   }
 
-  // Reconstruct the full target URL from the slug array.
-  // For example: ['https:', '', 'example.com', 'path'] -> 'https://example.com/path'
-  let targetUrl = slug.join('/');
-  // Fix cases where the protocol separator is missing a slash
-  targetUrl = targetUrl
-    .replace(/^https:\/(?!\/)/, 'https://')
-    .replace(/^http:\/(?!\/)/, 'http://');
+  // Check for UI display option - we'll always generate the signature
+  const shouldShowVerificationUI = request.nextUrl.searchParams.has('signature');
+  const targetUrl = normalizeUrl(slug);
 
   try {
-    // Validate the URL format
+    // Validate URL format
     new URL(targetUrl);
 
     const fetchTimestamp = Date.now();
     const jinaReaderUrl = `https://r.jina.ai/${targetUrl}`;
 
-    // Fetch content from the Jina Reader as a reverse proxy
+    // Fetch content from Jina Reader
     const response = await fetch(jinaReaderUrl);
-
     if (!response.ok) {
       return NextResponse.json(
-        {
-          error: `Failed to fetch from Jina Reader: ${response.status} ${response.statusText}`,
-        },
+        { error: `Failed to fetch: ${response.status} ${response.statusText}` },
         { status: response.status }
       );
     }
 
-    const contentType = response.headers.get('content-type') || 'text/markdown';
-    const content = await response.text();
+    let contentType = response.headers.get('content-type') || 'text/markdown';
+    let content = await response.text();
+    
+    // Always create verification data
     const contentHash = hashContent(content);
     const signatureToken = createSignatureToken(targetUrl, fetchTimestamp, contentHash);
-
-    // Bundle signature details in a JSON string for the client
-    const signatureWebhook = JSON.stringify({
+    const verificationData: VerificationData = {
       url: targetUrl,
       timestamp: fetchTimestamp,
       contentHash,
       signatureToken,
-    });
+    };
+    const signatureWebhook = JSON.stringify(verificationData);
 
+    // Modify content based on content type and UI display preference
+    if (contentType.includes('text/html')) {
+      // Always inject signature metadata, but only show verification UI if requested
+      content = injectVerificationUI(content, signatureWebhook, shouldShowVerificationUI);
+    } else if (shouldShowVerificationUI) {
+      // For non-HTML content, wrap with verification UI if requested
+      content = wrapContentWithSignatureViewer(content, signatureWebhook);
+      contentType = 'text/html'; // override content type to HTML
+    }
+
+    // Return the content with appropriate headers
     return new NextResponse(content, {
       headers: {
         'Content-Type': contentType,
