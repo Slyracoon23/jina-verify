@@ -50,6 +50,9 @@ async function computeContentHash() {
     const copyBtnContainer = tempDiv.querySelector('.copy-btn-container');
     if (copyBtnContainer) copyBtnContainer.remove();
     
+    const highlightToolbar = tempDiv.querySelector('.highlight-toolbar');
+    if (highlightToolbar) highlightToolbar.remove();
+    
     content = tempDiv.querySelector('body').innerHTML;
   }
   
@@ -152,10 +155,10 @@ function updateBadgeStatus(isVerified, message) {
 // Copy text to clipboard
 function copyToClipboard(text, event) {
   // Stop event propagation to prevent toggling the metadata
-  event.stopPropagation();
+  if (event) event.stopPropagation();
   
   // Copy to clipboard
-  navigator.clipboard.writeText(text)
+  return navigator.clipboard.writeText(text)
     .then(() => {
       // Create or get the notification element
       let notification = document.getElementById('field-copy-notification');
@@ -182,9 +185,12 @@ function copyToClipboard(text, event) {
           notification.style.display = '';
         }, 100);
       }, 2300);
+      
+      return true;
     })
     .catch(err => {
       console.error('Failed to copy: ', err);
+      return false;
     });
 }
 
@@ -226,11 +232,302 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Apply highlighting if parameter exists
     applyHighlighting();
+    
+    // Set up text selection highlighting
+    setupTextHighlighting();
+    
   } catch (error) {
     console.error('Verification error:', error);
     updateBadgeStatus(false, "Error during verification: " + error.message);
   }
 });
+
+// Set up text highlighting functionality
+function setupTextHighlighting() {
+  // Create highlight toolbar element
+  const toolbar = document.createElement('div');
+  toolbar.className = 'highlight-toolbar';
+  toolbar.style.display = 'none';
+  toolbar.style.zIndex = '10000'; // Ensure it appears above other elements
+  toolbar.innerHTML = `
+    <button class="highlight-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+      </svg>
+      Highlight & Share
+    </button>
+  `;
+  document.body.appendChild(toolbar);
+  
+  // Position toolbar near selection when text is selected
+  document.addEventListener('mouseup', function() {
+    const selection = window.getSelection();
+    if (selection.toString().trim().length > 0) {
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      
+      // Position toolbar significantly above the selection
+      toolbar.style.position = 'absolute';
+      toolbar.style.left = `${rect.left + window.scrollX + (rect.width / 2) - (toolbar.offsetWidth / 2)}px`;
+      toolbar.style.top = `${rect.top + window.scrollY - toolbar.offsetHeight - 50}px`;
+      toolbar.style.display = 'block';
+      toolbar.style.pointerEvents = 'auto'; // Ensure it's clickable
+      
+      // Ensure toolbar is within viewport boundaries
+      setTimeout(() => {
+        const toolbarRect = toolbar.getBoundingClientRect();
+        
+        // Handle horizontal position
+        if (toolbarRect.left < 10) {
+          toolbar.style.left = '10px';
+        } else if (toolbarRect.right > window.innerWidth - 10) {
+          toolbar.style.left = `${window.innerWidth - toolbar.offsetWidth - 10}px`;
+        }
+        
+        // If toolbar goes above the top of viewport, position it below the selection
+        if (toolbarRect.top < 10) {
+          toolbar.style.top = `${rect.bottom + window.scrollY + 20}px`;
+        }
+      }, 0);
+    } else {
+      // Hide toolbar when no selection
+      toolbar.style.display = 'none';
+    }
+  });
+  
+  // Hide toolbar when clicking elsewhere
+  document.addEventListener('mousedown', function(e) {
+    if (!toolbar.contains(e.target)) {
+      toolbar.style.display = 'none';
+    }
+  });
+  
+  // Highlight and share button click handler
+  const highlightBtn = toolbar.querySelector('.highlight-btn');
+  highlightBtn.addEventListener('click', function() {
+    const selection = window.getSelection();
+    if (selection.toString().trim().length > 0) {
+      createHighlightShareLink(selection.toString());
+      toolbar.style.display = 'none';
+    }
+  });
+}
+
+// Create a shareable link with the highlighted text
+function createHighlightShareLink(selectedText) {
+  // Get current URL
+  const currentUrl = window.location.href;
+  
+  // Create URL with highlight parameter
+  const url = new URL(currentUrl);
+  url.searchParams.set('highlight', selectedText.trim());
+  
+  // Create a modal to show and copy the link
+  const modal = document.createElement('div');
+  modal.className = 'highlight-share-modal';
+  modal.innerHTML = `
+    <div class="highlight-share-content">
+      <h3>Share Highlighted Content</h3>
+      <p>Use this link to share the content with your highlighted text:</p>
+      <div class="highlight-link-container">
+        <input type="text" class="highlight-link" value="${url.toString()}" readonly>
+        <button class="copy-link-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          Copy Link
+        </button>
+      </div>
+      <div class="copy-success-indicator hidden">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+        <span>Copied to clipboard!</span>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  
+  // Style the modal
+  const style = document.createElement('style');
+  style.textContent = `
+    .highlight-share-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      animation: fadeIn 0.2s ease-out;
+    }
+    .highlight-share-content {
+      background-color: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+      width: 90%;
+      max-width: 550px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+    .highlight-share-content h3 {
+      margin-top: 0;
+      margin-bottom: 12px;
+      font-size: 20px;
+      font-weight: 600;
+      color: #333;
+    }
+    .highlight-share-content p {
+      margin-bottom: 20px;
+      color: #555;
+      font-size: 15px;
+    }
+    .highlight-link-container {
+      display: flex;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .highlight-link {
+      flex: 1;
+      padding: 12px 16px;
+      border: 1px solid #e0e0e0;
+      border-right: none;
+      border-radius: 6px 0 0 6px;
+      font-size: 14px;
+      color: #333;
+      background-color: #f9f9f9;
+    }
+    .highlight-link:focus {
+      outline: none;
+      background-color: #fff;
+    }
+    .copy-link-btn {
+      padding: 0 20px;
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 0 6px 6px 0;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background-color 0.2s;
+    }
+    .copy-link-btn:hover {
+      background-color: #1d4ed8;
+    }
+    .copy-link-btn:active {
+      background-color: #1e40af;
+    }
+    .copy-success-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #16a34a;
+      font-size: 14px;
+      animation: slideUp 0.3s ease-out;
+      transition: opacity 0.3s, transform 0.3s;
+    }
+    .copy-success-indicator.hidden {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    .copy-success-indicator svg {
+      stroke: #16a34a;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes slideUp {
+      from { 
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to { 
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .highlight-toolbar {
+      background-color: white;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      padding: 4px;
+      animation: fadeIn 0.2s ease-out;
+    }
+    .highlight-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background-color: #f8f9fa;
+      color: #333;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    .highlight-btn:hover {
+      background-color: #ebedf0;
+      border-color: #d0d0d0;
+    }
+    .highlight-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // Copy link button handler
+  const copyBtn = modal.querySelector('.copy-link-btn');
+  const linkInput = modal.querySelector('.highlight-link');
+  const successIndicator = modal.querySelector('.copy-success-indicator');
+  
+  copyBtn.addEventListener('click', function() {
+    copyToClipboard(linkInput.value).then(success => {
+      if (success) {
+        // Show success indicator
+        successIndicator.classList.remove('hidden');
+        
+        // Auto-close modal after delay
+        setTimeout(() => {
+          // Fade out animation
+          modal.style.opacity = '0';
+          modal.style.transition = 'opacity 0.3s ease';
+          
+          setTimeout(() => {
+            document.body.removeChild(modal);
+          }, 300);
+        }, 1500);
+      }
+    });
+  });
+  
+  // Close modal when clicking outside
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) {
+      // Fade out animation
+      modal.style.opacity = '0';
+      modal.style.transition = 'opacity 0.3s ease';
+      
+      setTimeout(() => {
+        document.body.removeChild(modal);
+      }, 300);
+    }
+  });
+}
 
 // Function to apply highlighting based on regex pattern
 function applyHighlighting() {
@@ -306,7 +603,9 @@ function highlightTextNodes(element, searchTerm) {
   // Ignore verification UI elements
   if (element.classList && 
      (element.classList.contains('verification-badge') || 
-      element.classList.contains('copy-btn-container'))) {
+      element.classList.contains('copy-btn-container') ||
+      element.classList.contains('highlight-toolbar') ||
+      element.classList.contains('highlight-share-modal'))) {
     return;
   }
   
@@ -360,28 +659,12 @@ function copyContent(event) {
     if (copyBtnContainer) {
       copyBtnContainer.remove();
     }
+    const highlightToolbar = tempDiv.querySelector('.highlight-toolbar');
+    if (highlightToolbar) {
+      highlightToolbar.remove();
+    }
     contentToCopy = tempDiv.querySelector('body').innerHTML;
   }
   
-  navigator.clipboard.writeText(contentToCopy)
-    .then(() => {
-      const successElem = document.getElementById('copy-success');
-      successElem.classList.add('show');
-      
-      // Hide after delay
-      setTimeout(() => {
-        successElem.classList.remove('show');
-      }, 2000);
-      
-      // Completely remove notification after animation completes
-      setTimeout(() => {
-        successElem.style.display = 'none';
-        setTimeout(() => {
-          successElem.style.display = '';
-        }, 100);
-      }, 2300);
-    })
-    .catch(err => {
-      console.error('Failed to copy content: ', err);
-    });
+  copyToClipboard(contentToCopy);
 } 

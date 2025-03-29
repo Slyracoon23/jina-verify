@@ -233,6 +233,11 @@ body, html {
   box-shadow: 0 0 0 1px rgba(255, 200, 0, 0.25);
   position: relative;
   display: inline;
+  transition: background-color 0.2s ease;
+}
+
+.highlighted-text:hover {
+  background-color: rgba(255, 200, 0, 0.6);
 }
 
 /* Responsive design for smaller screens */
@@ -313,4 +318,38 @@ body, html {
 
 .toggle-btn.expanded svg {
   transform: rotate(180deg);
+}
+
+/* Highlight toolbar */
+.highlight-toolbar {
+  position: absolute;
+  background-color: #ffffff;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  padding: 8px;
+  z-index: 9998;
+  transition: opacity 0.2s ease;
+}
+
+.highlight-toolbar .highlight-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #ffc107;
+  color: #333;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.highlight-toolbar .highlight-btn:hover {
+  background-color: #ffb300;
+}
+
+.highlight-toolbar .highlight-btn svg {
+  width: 16px;
+  height: 16px;
 } 
