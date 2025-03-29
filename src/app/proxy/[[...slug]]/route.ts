@@ -39,18 +39,36 @@ export async function GET(
     // Construct the Jina Reader URL
     const jinaReaderUrl = `https://r.jina.ai/${targetUrl}`;
     
-    // Redirect to Jina Reader
-    return NextResponse.redirect(jinaReaderUrl);
+    // Act as a true reverse proxy - fetch content from Jina Reader
+    const response = await fetch(jinaReaderUrl);
     
-    // Alternative: Fetch and return content
-    // const response = await fetch(jinaReaderUrl);
-    // const data = await response.text();
-    // return new NextResponse(data, {
-    //   headers: {
-    //     'Content-Type': 'text/markdown',
-    //   },
-    // });
-  } catch {
-    return NextResponse.json({ error: 'Invalid URL provided' }, { status: 400 });
+    // Check if the fetch was successful
+    if (!response.ok) {
+      return NextResponse.json({ 
+        error: `Failed to fetch from Jina Reader: ${response.status} ${response.statusText}` 
+      }, { status: response.status });
+    }
+    
+    // Get the content type from the response
+    const contentType = response.headers.get('content-type') || 'text/markdown';
+    
+    // Get the content from the response
+    const content = await response.text();
+    
+    // Return the content directly to the client with appropriate headers
+    return new NextResponse(content, {
+      headers: {
+        'Content-Type': contentType,
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=3600',
+        'X-Proxy-By': 'Jina-Style-Proxy'
+      }
+    });
+  } catch (error) {
+    console.error('Proxy error:', error);
+    return NextResponse.json({ 
+      error: 'Failed to proxy the content',
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 } 

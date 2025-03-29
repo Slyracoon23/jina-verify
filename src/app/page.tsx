@@ -8,9 +8,9 @@ export default function Home() {
     <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
       <main className="flex flex-col gap-[32px] row-start-2 items-center w-full max-w-2xl">
         <div className="flex flex-col items-center gap-4 w-full">
-          <h1 className="text-2xl font-bold mb-2">Jina-Style Reader Proxy</h1>
+          <h1 className="text-2xl font-bold mb-2">Jina Reader Reverse Proxy</h1>
           <p className="text-center mb-4 text-sm">
-            Enter a URL to generate a clean, Jina-style proxy link.
+            Enter a URL to generate a reverse proxy link that fetches content directly through Jina Reader.
           </p>
           
           <div className="w-full">
@@ -124,7 +124,7 @@ function JinaProxyForm() {
           </div>
           <div className="overflow-x-auto">
             <p className="text-sm break-all font-[family-name:var(--font-geist-mono)] text-gray-600 dark:text-gray-400 mb-2">
-              This clean URL will proxy your content through Jina Reader
+              This URL will serve content from Jina Reader directly through your proxy
             </p>
             <a
               href={proxyUrl}

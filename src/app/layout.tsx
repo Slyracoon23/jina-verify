@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Jina-Style URL Proxy",
-  description: "Clean, Jina-style proxy for accessing web content through Jina Reader",
+  title: "Jina Reader Reverse Proxy",
+  description: "Serve web content through a Jina Reader reverse proxy",
 };
 
 export default function RootLayout({
