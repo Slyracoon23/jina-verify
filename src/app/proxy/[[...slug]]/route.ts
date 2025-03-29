@@ -31,79 +31,29 @@ export async function GET(
     );
   }
 
-  // Check if request is from a browser
   const isFromBrowser = isBrowserRequest(request);
-  
-  // Check if we should display the verification UI (only applies to browser requests)
-  const shouldShowVerificationUI = isFromBrowser && 
-    (request.nextUrl.searchParams.has('signature') || !request.nextUrl.searchParams.has('raw'));
-  
   const targetUrl = normalizeUrl(slug);
 
   try {
     // Validate URL format
     new URL(targetUrl);
 
-    const fetchTimestamp = Date.now();
+    // Fetch and prepare content (common for both flows)
+    const result = await fetchAndPrepareContent(targetUrl);
     
-    // Fetch content from Jina Reader
-    const { content, contentType, status, statusText } = await fetchFromJinaReader(targetUrl);
-    
-    // If fetch failed, return error
-    if (status !== 200) {
+    if (result.status !== 200) {
       return NextResponse.json(
-        { error: `Failed to fetch: ${status} ${statusText}` },
-        { status }
+        { error: `Failed to fetch: ${result.status} ${result.statusText}` },
+        { status: result.status }
       );
     }
 
-    // Create verification data
-    const contentHash = hashContent(content);
-    const signatureToken = createSignatureToken(targetUrl, fetchTimestamp, contentHash, PRIVATE_KEY);
-    const verificationData: VerificationData = {
-      url: targetUrl,
-      timestamp: fetchTimestamp,
-      contentHash,
-      signatureToken,
-      publicKey: PUBLIC_KEY,
-    };
-    const signatureWebhook = JSON.stringify(verificationData);
-
-    // Standard response headers used in all responses
-    const commonHeaders = {
-      'Content-Type': contentType,
-      'Access-Control-Allow-Origin': '*',
-      'Cache-Control': 'public, max-age=3600',
-      'X-Proxy-By': 'Jina-Style-Proxy',
-      'X-Signature-Webhook': signatureWebhook,
-      'X-Signature-Token': signatureToken,
-      'X-Public-Key': PUBLIC_KEY,
-    };
-
-    // For non-browser requests (curl, etc.), return raw content with verification in headers
+    // Choose appropriate handler based on request type
     if (!isFromBrowser || request.nextUrl.searchParams.has('raw')) {
-      return new NextResponse(content, { headers: commonHeaders });
-    }
-    
-    // For browser requests, process content according to its type
-    let processedContent;
-    let finalContentType = contentType;
-    
-    if (contentType.includes('text/html')) {
-      // If HTML, inject our verification UI
-      processedContent = injectVerificationUI(content, signatureWebhook, shouldShowVerificationUI);
+      return handleNonBrowserRequest(result);
     } else {
-      // Otherwise, wrap the content in our HTML template
-      processedContent = wrapContentWithSignatureViewer(content, signatureWebhook);
-      finalContentType = 'text/html'; // override to HTML for the wrapper
+      return handleBrowserRequest(request, result);
     }
-
-    return new NextResponse(processedContent, {
-      headers: {
-        ...commonHeaders,
-        'Content-Type': finalContentType,
-      }
-    });
   } catch (error) {
     console.error('Proxy error:', error);
     return NextResponse.json(
@@ -114,4 +64,96 @@ export async function GET(
       { status: 500 }
     );
   }
+}
+
+// Helper function to fetch and prepare content
+async function fetchAndPrepareContent(targetUrl: string) {
+  const fetchTimestamp = Date.now();
+  
+  // Fetch content from Jina Reader
+  const { content, contentType, status, statusText } = await fetchFromJinaReader(targetUrl);
+  
+  // Create verification data
+  const contentHash = hashContent(content);
+  const signatureToken = createSignatureToken(targetUrl, fetchTimestamp, contentHash, PRIVATE_KEY);
+  const verificationData: VerificationData = {
+    url: targetUrl,
+    timestamp: fetchTimestamp,
+    contentHash,
+    signatureToken,
+    publicKey: PUBLIC_KEY,
+  };
+  const signatureWebhook = JSON.stringify(verificationData);
+
+  // Standard response headers
+  const commonHeaders = {
+    'Content-Type': contentType,
+    'Access-Control-Allow-Origin': '*',
+    'Cache-Control': 'public, max-age=3600',
+    'X-Proxy-By': 'Jina-Style-Proxy',
+    'X-Signature-Webhook': signatureWebhook,
+    'X-Signature-Token': signatureToken,
+    'X-Public-Key': PUBLIC_KEY,
+  };
+
+  return { 
+    content, 
+    contentType, 
+    status, 
+    statusText, 
+    signatureWebhook,
+    commonHeaders 
+  };
+}
+
+// Handler for non-browser requests (CLI tools, APIs, etc.)
+function handleNonBrowserRequest(result: {
+  content: string,
+  commonHeaders: Record<string, string>
+}) {
+  return new NextResponse(result.content, { 
+    headers: result.commonHeaders 
+  });
+}
+
+// Handler for browser requests
+function handleBrowserRequest(
+  request: NextRequest,
+  result: {
+    content: string,
+    contentType: string,
+    signatureWebhook: string,
+    commonHeaders: Record<string, string>
+  }
+) {
+  // Check if we should display the verification UI
+  const shouldShowVerificationUI = 
+    request.nextUrl.searchParams.has('signature') || 
+    !request.nextUrl.searchParams.has('raw');
+  
+  let processedContent;
+  let finalContentType = result.contentType;
+  
+  if (result.contentType.includes('text/html')) {
+    // If HTML, inject our verification UI
+    processedContent = injectVerificationUI(
+      result.content, 
+      result.signatureWebhook, 
+      shouldShowVerificationUI
+    );
+  } else {
+    // Otherwise, wrap the content in our HTML template
+    processedContent = wrapContentWithSignatureViewer(
+      result.content, 
+      result.signatureWebhook
+    );
+    finalContentType = 'text/html'; // override to HTML for the wrapper
+  }
+
+  return new NextResponse(processedContent, {
+    headers: {
+      ...result.commonHeaders,
+      'Content-Type': finalContentType,
+    }
+  });
 }
