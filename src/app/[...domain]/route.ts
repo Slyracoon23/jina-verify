@@ -18,13 +18,13 @@ const PUBLIC_KEY = process.env.PUBLIC_KEY || 'your-public-key-change-me';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug?: string[] } }
+  { params }: { params: { domain?: string[] } }
 ) {
   const resolvedParams = await params;
-  const slug = resolvedParams.slug || [];
+  const domain = resolvedParams.domain || [];
 
   // Require a URL in the path
-  if (slug.length === 0) {
+  if (domain.length === 0) {
     return NextResponse.json(
       { error: 'URL is required in the path (e.g., /proxy/https://example.com)' },
       { status: 400 }
@@ -32,7 +32,7 @@ export async function GET(
   }
 
   const isFromBrowser = isBrowserRequest(request);
-  const targetUrl = normalizeUrl(slug);
+  const targetUrl = normalizeUrl(domain);
 
   try {
     // Validate URL format
