@@ -42,7 +42,7 @@ body, html {
   background: #ffffff;
   border: 1px solid #e0e0e0;
   border-radius: 12px;
-  padding: 24px;
+  padding: 16px;
   z-index: 9999;
   box-shadow: 0 6px 16px rgba(0,0,0,0.12);
   color: #333;
@@ -63,9 +63,9 @@ body, html {
   font-size: 1.25rem;
   font-weight: 600;
   color: #2e7d32;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
 }
 
 .verification-header svg {
@@ -79,13 +79,15 @@ body, html {
 /* Metadata is hidden by default and can be toggled */
 .verification-metadata {
   display: none;
-  margin-top: 16px;
+  margin-top: 12px;
   font-size: 1rem;
   color: #555;
   line-height: 1.5;
   opacity: 0;
   transform: translateY(-10px);
   transition: opacity 0.3s, transform 0.3s;
+  border-top: 1px solid #e0e0e0;
+  padding-top: 12px;
 }
 
 .verification-metadata.visible {
@@ -246,12 +248,12 @@ body, html {
     left: 2.5vw;
     right: 2.5vw;
     top: 10px;
-    padding: 16px;
+    padding: 12px;
   }
   
   .verification-header {
     font-size: 1.1rem;
-    margin-bottom: 12px;
+    margin-bottom: 0;
   }
   
   .verification-metadata {
@@ -271,7 +273,7 @@ body, html {
 
 @media (max-width: 480px) {
   .verification-badge {
-    padding: 12px;
+    padding: 10px;
   }
   
   .verification-header svg {
@@ -289,8 +291,8 @@ body, html {
 /* Add a toggle button style */
 .toggle-btn {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 10px;
+  right: 10px;
   background: rgba(76, 175, 80, 0.1);
   border: 1px solid rgba(76, 175, 80, 0.2);
   color: #2e7d32;
@@ -300,7 +302,7 @@ body, html {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
+  padding: 4px 8px;
   border-radius: 4px;
   transition: all 0.2s;
 }
